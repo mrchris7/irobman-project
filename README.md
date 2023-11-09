@@ -10,3 +10,11 @@ Group:
 - Caleb Morton
 - Emanuel Araujo
 - Christian Maurer
+
+# Planning
+
+Subtasks:
+- CV, Tracking, Object detection, RGBD-Cube Detector 2D/3D (Xu, Kaiwen, Christian)
+- Motion Planning (Emanuel, Caleb)
+
+- (Behavior Tree (high level task))
