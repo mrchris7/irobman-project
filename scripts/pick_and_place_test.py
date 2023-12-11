@@ -2,6 +2,7 @@
 
 import rospy
 from pick_and_place_module.pick_and_place import PickAndPlace
+from pick_and_place_module.plan_scene import PlanScene
 
 def task():
     pick_and_place = PickAndPlace(0.05, 0.5)
@@ -21,5 +22,11 @@ def task():
     pick_and_place.execute_cartesian_pick_and_place()
     #pick_and_place.execute_pick_and_place()
 
+def test():
+    plan_scene = PlanScene()
+    
+   
+    plan_scene.set_envirorment()
+
 if __name__ == "__main__":
-    task()
+    test()

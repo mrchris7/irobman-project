@@ -3,7 +3,10 @@ import rospy
 from nav_msgs.msg import Odometry
 
 def callback(data):
-    index=data.child_frame_id[-1]
+    if len(data.child_frame_id) == 6:
+        index=data.child_frame_id[5]
+    else:
+        index=data.child_frame_id[5]+data.child_frame_id[6]
     rospy.set_param("cube_"+str(index)+"_x",data.pose.pose.position.x)
     rospy.set_param("cube_"+str(index)+"_y",data.pose.pose.position.y)
     rospy.set_param("cube_"+str(index)+"_z",data.pose.pose.position.z)
