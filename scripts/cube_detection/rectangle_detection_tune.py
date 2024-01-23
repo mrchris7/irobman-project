@@ -23,7 +23,7 @@ poly_eps = 0.026
 
 # start
 img = load_image("img1.png")
-scaling = 0.5
+scaling = 0.5  # scale image for visualization
 
 img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
 window_name = 'image'
@@ -112,6 +112,7 @@ def run(img_to_show=None):
         x1, y1 = cnt[0][0]
         approx = cv2.approxPolyDP(cnt, poly_eps * cv2.arcLength(cnt, True), True)
         if len(approx) == 4:
+            # TODO: filter cubes: ensure that the 4 edges have approximately the same length
             shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
             shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
             cv2.putText(shapes_img, 'Cube', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
