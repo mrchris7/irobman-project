@@ -5,6 +5,7 @@ from pick_and_place_module.pick_and_place import PickAndPlace
 from pick_and_place_module.plan_scene import PlanScene
 from pick_and_place_module.generate_structure import GenerateStructure
 from tf.transformations import euler_from_quaternion
+from pick_and_place_module.eef_control import MoveGroupControl
 
 def task():
 
@@ -32,10 +33,24 @@ def task():
 '''
 def test():
     plan_scene = PlanScene()
-    
-   
-    plan_scene.set_table()
-    plan_scene.set_cube(0)
+    plan_scene.set_envirorment()
+    pick_and_place = PickAndPlace(0.05, 0.5)
+    pick_position=[0.5,0.5,0.9]
+    pick_orientation=[0,3.14,0]
+    place_orientation=[0,3.14,0]
+    place_position=[0.5,1,0.9]
+    pick_and_place.setPickPose(*pick_position,*pick_orientation)
+    pick_and_place.setDropPose(*place_position,*place_orientation)
+    pick_and_place.setGripperPose(0.045)
+    pick_and_place.setGripperParams(0.1,10,0.005,0.008) # Speed, Force, ep_inner,ep_outer
+    pick_and_place.execute_pick_and_place()
+
+def test2():
+    plan_scene = PlanScene()
+    plan_scene.set_envirorment()
+    moveit_control = MoveGroupControl()
+    moveit_control.go_to_pose_goal(0.5, 0.5,1,0.785,3.14,0)
+
 
 if __name__ == "__main__":
-    task()
+    test2()
