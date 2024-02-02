@@ -1,6 +1,6 @@
 from enum import Enum
 import rospy
-from your_package.srv import PlanMotion, DetectCube, GripperControl
+from srv import PlanMotionPose, PlanMotionJoint, DetectCube, GripperControl
 from sensor_msgs.msg import JointState
 
 
@@ -20,7 +20,8 @@ class StateMachine:
     
     def __init__(self):
         rospy.init_node('state_machine', anonymous=True)
-        self.motion_planning_client = rospy.ServiceProxy('/plan_motion', PlanMotion)
+        self.motion_planning_pose_client = rospy.ServiceProxy('/plan_motion_pose', PlanMotionPose)
+        self.motion_planning_joint_client = rospy.ServiceProxy('/plan_motion_joint', PlanMotionJoint)
         self.gripper_client = rospy.ServiceProxy('/control_gripper', GripperControl)
         self.cube_detection_client = rospy.ServiceProxy('/detect_cube', DetectCube)
         
@@ -35,8 +36,8 @@ class StateMachine:
         self.detect_cube()
 
     def move_to_initial_pose(self):
-        rospy.wait_for_service('plan_motion')
-        self.motion_planning_client(INITIAL_JOINT_STATE, self.move_to_initial_pose_cb)
+        rospy.wait_for_service('plan_motion_joint')
+        self.motion_planning_joint_client(INITIAL_JOINT_STATE, self.move_to_initial_pose_cb)
 
 
 
@@ -58,18 +59,16 @@ class StateMachine:
         self.state = State.AT_CUBE
         self.pick_cube()
 
-
     def move_to_cube(self, position):
-        rospy.wait_for_service('plan_motion')
-        self.motion_planning_client(position, self.move_to_cube_cb)
+        rospy.wait_for_service('plan_motion_pose')
+        self.motion_planning_pose_client(position, self.move_to_cube_cb)
 
 
     
     ### 4. PICK CUBE ###
     def pick_cube_cb(self, response):
         self.state = State.AT_CUBE_PICKED
-        self.pick_cube()
-
+        self.move_to_tower()
 
     def pick_cube(self, position):
         rospy.wait_for_service('control_gripper')
@@ -77,9 +76,29 @@ class StateMachine:
 
 
 
-    ### 5. PLACE CUBE ###
-    # TODO
+    ### 5. MOVE TO TOWER ###
+    def move_to_tower_cb(self, response):
+        self.state = State.AT_TOWER
+        self.pick_cube()
 
+    def move_to_tower(self):
+        rospy.wait_for_service('plan_motion_pose')
+        self.motion_planning_pose_client(position, self.move_to_tower_cb)
+
+
+    
+    ### 6. PLACE CUBE ###
+    def place_cube_cb(self, response):
+        self.state = State.AT_TOWER_RELEASED
+        self.move_to_initial_pose()
+
+    def place_cube(self):
+        rospy.wait_for_service('control_gripper')
+        self.gripper_client("OPEN", self.place_cube_cb)
+
+    
+    ### 7. CHECK PLACEMENT ###
+    # TODO 
 
 
 if __name__ == '__main__':
