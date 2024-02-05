@@ -1,4 +1,0 @@
-string msg
-geometry_msgs/JointState joint_state
----
-string msg
