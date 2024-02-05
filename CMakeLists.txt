@@ -52,6 +52,7 @@ catkin_python_setup()
 add_message_files(
   FILES
   Grasp.msg
+  CubePoses.msg
   # Message2.msg
 )
 
@@ -60,6 +61,9 @@ add_message_files(
 #   FILES
 #   Service1.srv
 #   Service2.srv
+    GripperControl.srv
+    PlanMotionJoint.srv
+    PlanMotionPose.srv
 # )
 
 ## Generate actions in the 'action' folder
@@ -70,9 +74,9 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES std_msgs geometry_msgs
-#)
+generate_messages(
+  DEPENDENCIES std_msgs geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
