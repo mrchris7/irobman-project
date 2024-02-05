@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   geometry_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,14 +58,13 @@ add_message_files(
 )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
+ add_service_files(
+    FILES
     GripperControl.srv
-    PlanMotionJoint.srv
-    PlanMotionPose.srv
-# )
+    JointMotionPlanning.srv
+    PoseMotionPlanning.srv
+    CartesianMotionPlanning.srv
+ )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -75,7 +75,7 @@ add_message_files(
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
-  DEPENDENCIES std_msgs geometry_msgs
+  DEPENDENCIES std_msgs geometry_msgs sensor_msgs
 )
 
 ################################################

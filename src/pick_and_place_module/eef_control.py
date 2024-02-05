@@ -17,33 +17,15 @@ def dist(p, q):
 class MoveGroupControl:
     def __init__(self):
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node("move_group_control", anonymous=True)
-
-        robot = moveit_commander.RobotCommander()
-
-        scene = moveit_commander.PlanningSceneInterface()
-
+        #rospy.init_node("move_group_control", anonymous=True)
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_commander.PlanningSceneInterface()
         group_name = "panda_arm"
-        move_group = moveit_commander.MoveGroupCommander(group_name)
-
-        planning_frame = move_group.get_planning_frame()
-        # rospy.loginfo(" Planning frame: %s", planning_frame)
-
-        eef_link = move_group.get_end_effector_link()
-        # rospy.loginfo(" End effector link: %s", eef_link)
-
-        group_names = robot.get_group_names()
-        # rospy.loginfo(" Available Planning Groups: %s", robot.get_group_names())
-
-        # rospy.loginfo(" Printing robot state:")
-        # rospy.loginfo(robot.get_current_state())
-
-        self.robot = robot
-        self.scene = scene
-        self.move_group = move_group
-        self.planning_frame = planning_frame
-        self.eef_link = eef_link
-        self.group_names = group_names
+        self.move_group = moveit_commander.MoveGroupCommander(group_name)
+        self.planning_frame = self.move_group.get_planning_frame()
+        self.eef_link = self.move_group.get_end_effector_link()
+        self.group_names = self.robot.get_group_names()
+        
 
     def go_to_joint_state(self, j1=0, j2=0, j3=0, j4=-tau/4, j5=0, j6=0, j7=0):
         move_group = self.move_group
@@ -67,6 +49,27 @@ class MoveGroupControl:
         move_group = self.move_group
 
         qw, qx, qy, qz = quaternion_from_euler(X, Y, Z)
+        
+        pose_goal = geometry_msgs.msg.Pose()
+        pose_goal.orientation.w = qw
+        pose_goal.orientation.x = qx
+        pose_goal.orientation.y = qy
+        pose_goal.orientation.z = qz
+        pose_goal.position.x = x
+        pose_goal.position.y = y
+        pose_goal.position.z = z
+        
+        move_group.set_pose_target(pose_goal)
+
+        plan = move_group.go(wait=True)
+        move_group.stop()
+        move_group.clear_pose_targets()
+
+        current_pose = self.move_group.get_current_pose().pose
+        return all_close(pose_goal, current_pose, 0.01)
+    
+    def go_to_pose_goal_quaternion(self, x=0, y=0, z=0, qx=0,qy=0,qz=0,qw=0):
+        move_group = self.move_group
         
         pose_goal = geometry_msgs.msg.Pose()
         pose_goal.orientation.w = qw

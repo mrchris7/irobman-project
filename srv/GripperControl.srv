@@ -1,4 +1,3 @@
-string msg
 string command
 ---
-string msg
+bool success
