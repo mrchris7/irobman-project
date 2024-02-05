@@ -2,6 +2,7 @@ import rospy
 
 import moveit_commander
 import geometry_msgs.msg
+from nav_msgs.msg import Odometry
 
 class PlanScene:
     def __init__(self):
@@ -45,7 +46,21 @@ class PlanScene:
         boxD.pose.position.y = 0
         boxD.pose.position.z = z
         self.scene.add_box("env4", boxD, size=(0.01, lenght, 1))
-    
+    def set_cube_0(self):
+        data = Odometry()
+        data = rospy.wait_for_message('/cube_1_odom', Odometry, timeout=None)
+        box_pose = geometry_msgs.msg.PoseStamped()
+        box_pose.header.frame_id = "panda_link0"
+        box_pose.pose.orientation.w = data.pose.pose.orientation.w
+        box_pose.pose.orientation.x = data.pose.pose.orientation.x
+        box_pose.pose.orientation.y = data.pose.pose.orientation.y
+        box_pose.pose.orientation.z = data.pose.pose.orientation.z
+        box_pose.pose.position.x = data.pose.pose.position.x
+        box_pose.pose.position.y = data.pose.pose.position.y
+        box_pose.pose.position.z = data.pose.pose.position.z
+        self.scene.add_box("cube_0", box_pose, size=(0.045, 0.045, 0.045))
+
+
     def set_cubes(self):
         for index in range(30):
             #print("cube_"+str(index)+"_x")
@@ -78,6 +93,7 @@ class PlanScene:
     def set_envirorment(self):
         self.set_table(0.81,1.49,0.787,0.495000,0,0.393500)
         self.set_env_constrains()
+        #self.set_cube_0()
         #self.set_cubes()
         #print(self.scene.get_known_object_names())
 

@@ -49,8 +49,13 @@ def test2():
     plan_scene = PlanScene()
     plan_scene.set_envirorment()
     moveit_control = MoveGroupControl()
-    moveit_control.go_to_pose_goal(0.5, 0.5,1,0.785,3.14,0)
+    moveit_control.go_to_pose_goal(0.5, 0.3,1,0.785,3.14,0)
 
+def test3():
+    plan_scene = PlanScene()
+    plan_scene.set_envirorment()
+    pick_and_place = PickAndPlace()
+    pick_and_place.execute_pick(0)
 
 if __name__ == "__main__":
-    test2()
+    test3()

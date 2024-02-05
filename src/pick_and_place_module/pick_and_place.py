@@ -1,13 +1,18 @@
 import rospy
 from pick_and_place_module.eef_control import MoveGroupControl
 from pick_and_place_module.grasping import Gripper
+from nav_msgs.msg import Odometry
 from copy import deepcopy
 from math import pi
+import moveit_msgs.msg
+from tf.transformations import quaternion_from_euler
+import moveit_commander
+from moveit_msgs.msg import Grasp
 
 class PickAndPlace:
-    def __init__(self, gripper_offset, intermediate_z_stop):
-        self.gripper_offset = gripper_offset
-        self.intermediate_z_stop = intermediate_z_stop
+    def __init__(self):
+        self.gripper_offset = 0.05
+        self.intermediate_z_stop = 0.5
         self.pick_pose = None
         self.place_pose = None
         self.gripper_pose = None
@@ -17,7 +22,21 @@ class PickAndPlace:
         self.gripper_ep_outer = None
         self.moveit_control = MoveGroupControl()
         self.gripper = Gripper()
+        self.data = Odometry()
     
+
+    def execute_pick(self, cubeID):
+        self.data = rospy.wait_for_message('/cube_'+str(cubeID)+'_odom', Odometry, timeout=1)
+        x = self.data.pose.pose.position.x
+        y = self.data.pose.pose.position.y
+        z = self.data.pose.pose.position.z + 0.5
+        qx = self.data.pose.pose.orientation.x
+        qy = self.data.pose.pose.orientation.y
+        qz = self.data.pose.pose.orientation.z
+        qw = self.data.pose.pose.orientation.w
+        qx,qy,qz,qw = quaternion_from_euler(pi/2, 0, -pi/2) #RPY
+        self.moveit_control.go_to_pose_goal_quaternion(x,y,z,qx,qy,qz,qw)
+
     def setPickPose(self, x, y, z, roll, pitch, yaw):
         self.pick_pose = [x, y, z, roll + pi/4, pitch, yaw]
     
@@ -104,7 +123,10 @@ class PickAndPlace:
             move_group.go_to_pose_goal(waypoint[0], waypoint[1], waypoint[2], waypoint[3], waypoint[4], waypoint[5])
                         
         self.gripper.move(0.08,0.1)
-        rospy.sleep(2)   
+        rospy.sleep(2)  
+
+    
+        
 
           
        
