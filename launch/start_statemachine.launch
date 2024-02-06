@@ -1,0 +1,9 @@
+<!-- NOT FINISHED -->
+
+<launch>
+  <!-- Load joint states parameters into parameter server -->
+  <rosparam file="$(find irobman-project)/config/general_config.yaml" command="load" />
+  
+  <!-- Launch your Python node -->
+  <node name="state_machine" pkg="irobman-project" type="state_machine.py" output="screen" />
+</launch>
