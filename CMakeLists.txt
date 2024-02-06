@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  std_srvs
   message_generation
   geometry_msgs
   sensor_msgs
@@ -53,17 +54,17 @@ catkin_python_setup()
 add_message_files(
   FILES
   Grasp.msg
-  CubePoses.msg
-  # Message2.msg
 )
 
 ## Generate services in the 'srv' folder
  add_service_files(
     FILES
-    GripperControl.srv
     JointMotionPlanning.srv
-    PoseMotionPlanning.srv
     CartesianMotionPlanning.srv
+    GetPoints.srv
+    SetPoints.srv
+    GetPoses.srv
+    SetPoses.srv
  )
 
 ## Generate actions in the 'action' folder

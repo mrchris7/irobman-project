@@ -1,0 +1,4 @@
+geometry_msgs/Point[] points  # alternatively use rrt_exploration/PointArray Message
+---
+bool success
+string message  # for error description

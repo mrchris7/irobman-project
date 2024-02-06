@@ -1,4 +1,4 @@
-sensor_msgs/JointState joint_state
+geometry_msgs/JointState joint_state
 ---
 bool success
 string message  # for error description

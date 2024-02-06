@@ -1,4 +1,4 @@
-geometry_msgs/Pose pose
 ---
+geometry_msgs/Pose[] poses
 bool success
 string message  # for error description

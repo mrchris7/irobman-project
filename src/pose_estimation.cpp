@@ -3,7 +3,7 @@
 PoseEstimationNode::PoseEstimationNode() {
     nh_ = ros::NodeHandle("~");
 
-    poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("CubePoses", 10);
+    poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("cube_poses", 10);
     toggle_service_ = nh_.advertiseService("ToggleTracker", &PoseEstimationNode::handleToggleTracker, this);
     prepare_service_ = nh_.advertiseService("PrepareTracker", &PoseEstimationNode::handlePrepareTracker, this);
     retrieve_service_ = nh_.advertiseService("RetrieveTrackedPoses", &PoseEstimationNode::handleRetrievePoses, this);
