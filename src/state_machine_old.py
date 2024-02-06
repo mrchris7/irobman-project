@@ -8,21 +8,12 @@ from typing import List
 
 
 class State(Enum):
-    START = 0
-    MOVE_TO_INITIAL_POSE = 1
-    LOCALISE_TARGET_CUBE = 2
-    MOVE_TO_CUBE = 3
-    PICK_CUBE = 4
-    MOVE_TO_TOWER = 5
-    PLACE_CUBE = 6
-    END = 7
-
-
-class Status(Enum):
-    READY = 0
-    RUNNING = 1
-    FINISHED = 2   
-    ERROR = 3
+    AT_UNDEFINED = 0
+    AT_INIT_POSE = 1
+    AT_CUBE = 2
+    AT_CUBE_PICKED = 3
+    AT_TOWER = 4
+    AT_TOWER_RELEASED = 5
 
 
 class StateMachine:
@@ -48,73 +39,17 @@ class StateMachine:
 
         # setup
         self.init_joints = rospy.get_param('init_joints')
+        self.state = State.AT_UNDEFINED
         self.pose_eef = Pose()
         self.tower_height = 0
-        self.state = State.START
-        self.status = Status.READY
-        self.transition_data = None  # used to transfer data between states
-
-
-    def reset(self):
-        self.pose_eef = Pose()
-        self.tower_height = 0
-        self.state = State.START
-        self.status = Status.READY
-        self.transition_data = None
 
 
     # called from the outside
-    def execute(self):
+    def start(self):
         rospy.loginfo("Starting the task.")
-
-        while not rospy.is_shutdown():
-            
-            if (self.status == Status.ERROR):
-                rospy.loginfo("Task stopped in state " + self.state.name + " due to an error.")
-                break
-
-            elif (self.status == Status.FINISHED):
-                rospy.loginfo("Task finished.")
-                break
-
-            elif (self.status == Status.READY 
-                  or self.status == Status.RUNNING):
-                self.transition_to(self.state)
-            
-            rospy.sleep(0.1)  # not necessary
-
-
-    # call it only from execute
-    def transition_to(self, state):
-        rospy.loginfo("Transition to state " + state.name)
-
-        data = self.transition_data
-        self.transition_data = None
-
-        if state == State.START:
-            self.state = State.MOVE_TO_INITIAL_POSE
-            self.status = Status.RUNNING
-
-        elif state == State.MOVE_TO_INITIAL_POSE:
-            self.move_to_initial_pose()
         
-        elif state == State.LOCALISE_TARGET_CUBE:
-            self.localise_target_cube()
-
-        elif state == State.MOVE_TO_CUBE:
-            self.move_to_cube(data)
-        
-        elif state == State.PICK_CUBE:
-            self.pick_cube()
-
-        elif state == State.MOVE_TO_TOWER:
-            self.move_to_tower()
-
-        elif state == State.PLACE_CUBE:
-            self.place_cube()
-
-        elif state == State.END:
-            self.status = Status.FINISHED
+        # TODO: problem: every action is a new function-call which goes "infinitely" deep
+        self.move_to_initial_pose()
 
     
     def handle_eff_pose(self, pose: Pose):
@@ -136,6 +71,16 @@ class StateMachine:
     ### 1. INITIAL POSE ###
     def move_to_initial_pose(self):
         
+        # precondition
+        if self.tower_height == self.max_tower_height:
+            rospy.loginfo("Tower successfully build.")
+            return
+
+        if self.state == State.AT_INIT_POSE:
+            self.localise_target_cube()
+            return
+
+        # execution
         rospy.wait_for_service('JointMotionPlanning')
 
         js = JointState()
@@ -144,15 +89,13 @@ class StateMachine:
 
         res = self.joint_planning_client(js)
         
+        # transition
         if not res.success:
-            self.error_handling(res.message)
+            self.error_handling(res.msg)
             return
-        
-
-        if self.tower_height == self.max_tower_height:
-            self.state = State.END
-        else:
-            self.state = State.LOCALISE_TARGET_CUBE        
+            
+        self.state = State.AT_INIT_POSE
+        self.localise_target_cube()
         
 
 
@@ -163,24 +106,24 @@ class StateMachine:
         res = self.detection_client()
 
         if not res.success:
-            self.error_handling(res.message)
+            self.move_to_initial_pose()
             return
         
         if len(res.points) == 0:
-            self.error_handling("No cubes detected. The tower cannot be build.")
+            rospy.INFO("No cubes detected. The tower can not be finished.")
 
         rospy.wait_for_service('PrepareTracker')
         res = self.prepare_tracker_client(res.points)
 
         if not res.success:
-            self.error_handling(res.message)
+            self.move_to_initial_pose()
             return
 
         rospy.wait_for_service('ToggleTracker')
         res = self.toggle_tracker_client(True)
         
         if not res.success:
-            self.error_handling(res.message)
+            self.move_to_initial_pose()
             return
         
         rospy.sleep(3)  # give tracker some time
@@ -189,17 +132,14 @@ class StateMachine:
         res = self.retrieve_tracked_poses_client()
         
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.move_to_initial_pose()
             return
 
         # TODO: evaluate if poses are good, maybe filter before choosing the target?
         #       e.g. ignore poses that have negative z, or too high z coordinates
 
         target_pose = self.choose_target_pose(res.poses)
-        
-        # go to next state
-        self.transition_data = target_pose
-        self.state = State.MOVE_TO_CUBE
+        self.move_to_cube(target_pose)
 
 
     ### 3. MOVE TO CUBE ###
@@ -212,10 +152,11 @@ class StateMachine:
         res = self.cartesian_planning_client(pose)  # TODO: responsible for a good grapsing-strategy
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.move_to_initial_pose()
             return
 
-        self.state = State.PICK_CUBE
+        self.state = State.AT_CUBE
+        self.pick_cube()
 
     
     ### 4. PICK CUBE ###
@@ -227,10 +168,11 @@ class StateMachine:
         #       and if not res.success shold be False
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.move_to_initial_pose()
             return
 
-        self.state = State.MOVE_TO_TOWER
+        self.state = State.AT_CUBE_PICKED
+        self.move_to_tower()
 
 
 
@@ -243,10 +185,11 @@ class StateMachine:
         res = self.cartesian_planning_client(tower_pose)
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.move_to_initial_pose()
             return
 
-        self.state = State.PLACE_CUBE
+        self.state = State.AT_TOWER
+        self.place_cube()
 
 
     
@@ -257,25 +200,26 @@ class StateMachine:
         res = self.close_gripper_client(False)
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.move_to_initial_pose()
             return
 
         # TODO: check if placement of cube was correct
         self.tower_height += 1
 
-        self.state = State.MOVE_TO_INITIAL_POSE
+        self.state = State.AT_TOWER_RELEASED
+        self.move_to_initial_pose()    
     
 
 
     ### ERROR HANDLING ###
     def error_handling(self, err_msg):
         rospy.logerr(err_msg)
-        self.status = Status.ERROR
+        rospy.loginfo("Stopped the state machine.")
+        self.state = State.AT_UNDEFINED
 
 
 if __name__ == '__main__':
-    
     state_machine_node = StateMachine()
-    state_machine_node.execute()
+    state_machine_node.start()
 
     rospy.spin()

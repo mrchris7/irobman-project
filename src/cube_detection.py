@@ -1,5 +1,5 @@
 import rospy
-from irobman.srv import GetPoints, GetPointsResponse
+from irobman_project.srv import GetPoints, GetPointsResponse
 from geometry_msgs.msg import Point
 
 
