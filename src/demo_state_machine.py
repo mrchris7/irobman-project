@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rospy
 from enum import Enum
 from geometry_msgs.msg import Pose
@@ -174,6 +176,14 @@ class DemoStateMachine:
             return
         
 
+        rospy.wait_for_service('GripperControl')
+        res = self.close_gripper_client(False)
+
+        if not res.success:
+            self.state = State.MOVE_TO_INITIAL_POSE
+            return
+
+
         if self.tower_height == self.max_tower_height:
             self.state = State.END
         else:
@@ -233,6 +243,16 @@ class DemoStateMachine:
     def move_to_tower(self):
 
         # pre position
+        pose = self.choose_target_pose_pre([])
+
+        rospy.wait_for_service('JointMotionPlanning')
+        res = self.joint_planning_client(pose)
+
+        if not res.success:
+            self.state = State.MOVE_TO_INITIAL_POSE
+            return
+
+        # pre position
         tower_joints = self.calculate_tower_pose_pre()
 
         rospy.wait_for_service('JointMotionPlanning')
@@ -261,6 +281,17 @@ class DemoStateMachine:
 
         rospy.wait_for_service('GripperControl')
         res = self.close_gripper_client(False)
+
+        if not res.success:
+            self.state = State.MOVE_TO_INITIAL_POSE
+            return
+
+
+        # pre position
+        tower_joints = self.calculate_tower_pose_pre()
+
+        rospy.wait_for_service('JointMotionPlanning')
+        res = self.joint_planning_client(tower_joints)
 
         if not res.success:
             self.state = State.MOVE_TO_INITIAL_POSE
