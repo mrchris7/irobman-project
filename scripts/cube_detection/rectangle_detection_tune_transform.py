@@ -1,5 +1,6 @@
 # SOURCE: https://ch.mathworks.com/help/supportpkg/robotmanipulator/ug/configure-object-detection-using-opencv.html
 
+import rospy
 import cv2
 import numpy as np
 from get_image import capture_image, capture_depth_image, load_image
@@ -25,10 +26,22 @@ poly_eps = 0.026
 #img = load_image("img2.png")
 img = capture_image()
 #img_depth = capture_depth_image()
-scaling = 0.75
+scaling = 1
 
 img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
 window_name = 'image'
+
+
+def center_of_points(points):
+    print("input:", points)
+    x1, y1 = points[0][0]
+    x2, y2 = points[1][0]
+    x3, y3 = points[2][0]
+    x4, y4 = points[3][0]
+
+    center_x = (x1 + x2 + x3 + x4) / 4
+    center_y = (y1 + y2 + y3 + y4) / 4
+    return center_x, center_y
 
 
 def run(img_to_show=None):
@@ -117,6 +130,9 @@ def run(img_to_show=None):
             # TODO: filter cubes: ensure that the 4 edges have approximately the same length
             shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
             shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
+            center_x, center_y = center_of_points(approx)
+            print("center: ", center_x, center_y)
+            cv2.circle(shapes_img, (round(center_x), round(center_y)), 2, (0, 255, 0), 1)
             cv2.putText(shapes_img, 'Cube', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             cube_count += 1
 
@@ -218,7 +234,110 @@ def change_morph_ksize(x):
         morph_ksize = x
         print("morph_ksize:", morph_ksize)
         run('morph_ksize')
+        
+def transform(point_2d):
 
+    if not self.grasp_running:
+        rospy.loginfo("Processing the Image to locate the Object...")
+        try:
+            cv_image = cv_bridge.CvBridge().imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        except cv_bridge.CvBridgeError as e:
+            rospy.logerror("cv_bridge exception: %s", e)
+            return
+
+        obj_x, obj_y = self.vMng_.get_2d_location(cv_image)
+        rospy.loginfo("X-Co-ordinate in Camera Frame: %f", obj_x)
+        rospy.loginfo("Y-Co-ordinate in Camera Frame: %f", obj_y)
+
+        f_x = 526.945
+        f_y = 526.945	
+        pp_x = 648.178
+        pp_y = 358.773
+
+        depth_pts = cv2.imread.getDepth(obj_x, obj_y)/1000  # mm
+
+
+        holder_pos_x = -0.097397
+        holder_pos_y = -0.06
+        holder_pos_z = 0.0274111
+        holder_roll = 0
+        holder_pitch = -0.824473
+        holder_yaw = 3.14159
+
+        # Create translation matrix
+        translation_matrix = np.array([[1, 0, 0, holder_pos_x],
+                                        [0, 1, 0, holder_pos_y],
+                                        [0, 0, 1, holder_pos_z],
+                                        [0, 0, 0, 1]])
+
+        # Create rotation matrix
+        rotation_matrix = np.array([[np.cos(holder_yaw)*np.cos(holder_pitch), -np.sin(holder_yaw)*np.cos(holder_roll) + np.cos(holder_yaw)*np.sin(holder_pitch)*np.sin(holder_roll), np.sin(holder_yaw)*np.sin(holder_roll) + np.cos(holder_yaw)*np.sin(holder_pitch)*np.cos(holder_roll), 0],
+                                    [np.sin(holder_yaw)*np.cos(holder_pitch), np.cos(holder_yaw)*np.cos(holder_roll) + np.sin(holder_yaw)*np.sin(holder_pitch)*np.sin(holder_roll), -np.cos(holder_yaw)*np.sin(holder_roll) + np.sin(holder_yaw)*np.sin(holder_pitch)*np.cos(holder_roll), 0],
+                                    [-np.sin(holder_pitch), np.cos(holder_pitch)*np.sin(holder_roll), np.cos(holder_pitch)*np.cos(holder_roll), 0],
+                                    [0, 0, 0, 1]])
+
+        # Combine translation and rotation to get the transformation matrix
+        camera2lefteye_matrix = np.dot(rotation_matrix, translation_matrix)
+
+
+
+        self.obj_camera_frame = geometry_msgs.msg.Point()
+        self.obj_camera_frame.z = 1.0
+        self.obj_camera_frame.y = (obj_y - pp_y)* depth_pts/f_y
+        self.obj_camera_frame.x = (obj_x - pp_x)* depth_pts/f_x
+
+        translation = np.array([[1, 0, 0, -obj_x + pp_x],
+                    [0, 1, 0, -obj_y + pp_y],
+                    [0, 0, 1, -depth_pts],
+                    [0, 0, 0, 1]])
+
+        # Create a 4x4 identity matrix
+        rotation = np.eye(4)
+
+        # Combine translation and rotation to get the transformation matrix
+        cube2camera_matrix = np.dot(rotation, translation)
+        
+        
+        # <xacro:arg name="zed_pos_x"     default="-0.087397" /> 
+        # <xacro:arg name="zed_pos_y"     default="0.0523762" />   
+        # <xacro:arg name="zed_pos_z"     default="0.0374111" />
+        # <xacro:arg name="zed_roll"      default="0.000374354" />
+        # <xacro:arg name="zed_pitch"     default="0.746327" />
+        # <xacro:arg name="zed_yaw"       default="-1.57774" />
+        zed_pos_x = -0.087397
+        zed_pos_y = 0.0523762
+        zed_pos_z = 0.0374111
+        zed_roll = 0.000374354
+        zed_pitch = 0.746327
+        zed_yaw = -1.57774
+
+        # Create translation matrix
+        translation_matrix = np.array([[1, 0, 0, zed_pos_x],
+                                        [0, 1, 0, zed_pos_y],
+                                        [0, 0, 1, zed_pos_z],
+                                        [0, 0, 0, 1]])
+
+        # Create rotation matrix
+        rotation_matrix = np.array([[np.cos(zed_yaw)*np.cos(zed_pitch), -np.sin(zed_yaw)*np.cos(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), np.sin(zed_yaw)*np.sin(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
+                                    [np.sin(zed_yaw)*np.cos(zed_pitch), np.cos(zed_yaw)*np.cos(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), -np.cos(zed_yaw)*np.sin(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
+                                    [-np.sin(zed_pitch), np.cos(zed_pitch)*np.sin(zed_roll), np.cos(zed_pitch)*np.cos(zed_roll), 0],
+                                    [0, 0, 0, 1]])
+
+        # Combine translation and rotation to get the transformation matrix
+        camera2eef_matrix = np.dot(rotation_matrix, translation_matrix)
+
+        # extracted from initial pose 0_T_eff:
+        eef2base_matrix = np.array([0.900853, -0.0270615, -0.433258, 0],
+                                    [-0.0202124, -0.999578, 0.0204074, 0],
+                                    [-0.433635, -0.00962709, -0.901037, 0],
+                                    [0.466656, -0.0297833, 0.411497, 1])
+
+        self.object2base = cube2camera_matrix * camera2eef_matrix * eef2base_matrix
+        self.grasp_running = True
+
+        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getX())
+        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getY())
+        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getZ())
 
 
 cv2.imshow(window_name, img)
