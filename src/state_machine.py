@@ -3,7 +3,7 @@ from enum import Enum
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import JointState
 from std_srvs.srv import SetBool
-from srv import CartesianMotionPlanning, JointMotionPlanning, SetPoints, GetPoints, GetPoses
+from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning, SetPoints, GetPoints, GetPoses
 from typing import List
 
 
@@ -33,7 +33,7 @@ class StateMachine:
         # motion planner
         self.cartesian_planning_client = rospy.ServiceProxy('CartesianMotionPlanning', CartesianMotionPlanning)
         self.joint_planning_client = rospy.ServiceProxy('JointMotionPlanning', JointMotionPlanning)
-        self.close_gripper_client = rospy.ServiceProxy('ControlGripper', SetBool)  # TODO: rename to 'CloseGripper' (so it is more clear what the data in SetBool does)
+        self.close_gripper_client = rospy.ServiceProxy('GripperControl', SetBool)
         
         # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
         self.eef_pose_sub = rospy.Subscriber('eff_pose', Pose, self.handle_eff_pose)
@@ -50,6 +50,7 @@ class StateMachine:
         self.init_joints = rospy.get_param('init_joints')
         self.pose_eef = Pose()
         self.tower_height = 0
+        self.max_tower_height = 2
         self.state = State.START
         self.status = Status.READY
         self.transition_data = None  # used to transfer data between states

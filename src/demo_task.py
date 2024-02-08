@@ -12,7 +12,7 @@ from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning
 class DemoTask:
     def __init__(self):
         self.joint_planning_client = rospy.ServiceProxy('JointMotionPlanning', JointMotionPlanning)
-        self.close_gripper_client = rospy.ServiceProxy('ControlGripper', SetBool)
+        self.close_gripper_client = rospy.ServiceProxy('GripperControl', SetBool)
         self.error = False
 
     def planning(self, joints):
@@ -31,7 +31,7 @@ class DemoTask:
         if (self.error):
             return
 
-        rospy.wait_for_service('ControlGripper')
+        rospy.wait_for_service('GripperControl')
         res = self.close_gripper_client(open)
         if not res.success:
             self.error = True
@@ -40,13 +40,15 @@ class DemoTask:
 
     def start(self):
 
+        rospy.loginfo("Starting demo.")
+
         # air
         self.planning([2.0678,0.595755,-2.21163,-2.17795,0.453459,1.78567,0.441341])
 
-        self.gripper(True)
-
         # pre cube 1
         self.planning([-0.30624,0.505797,-0.542583,-2.13841,0.538941,2.54162,-0.49178])
+
+        self.gripper(True)
 
         # cube 1
         self.planning([-0.330565,0.660273,-0.486617,-2.09717,0.539462,2.63023,-0.435691])
@@ -88,6 +90,8 @@ class DemoTask:
 
         # air
         self.planning([2.0678,0.595755,-2.21163,-2.17795,0.453459,1.78567,0.441341])
+
+        rospy.loginfo("Finished demo.")
 
 
 if __name__ == '__main__':
