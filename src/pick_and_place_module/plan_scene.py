@@ -46,33 +46,14 @@ class PlanScene:
         boxD.pose.position.z = z
         self.scene.add_box("env4", boxD, size=(0.01, lenght, 1))
     
-    def set_cubes(self):
-        for index in range(30):
-            #print("cube_"+str(index)+"_x")
-            if rospy.has_param("cube_"+str(index)+"_x"):
-                box_pose = geometry_msgs.msg.PoseStamped()
-                #print(index)
-                box_pose.header.frame_id = "panda_link0"
-                box_pose.pose.orientation.w = rospy.get_param("cube_"+str(index)+"_orient_w")
-                box_pose.pose.orientation.x = rospy.get_param("cube_"+str(index)+"_orient_x")
-                box_pose.pose.orientation.y = rospy.get_param("cube_"+str(index)+"_orient_y")
-                box_pose.pose.orientation.z = rospy.get_param("cube_"+str(index)+"_orient_z")
-                box_pose.pose.position.x = rospy.get_param("cube_"+str(index)+"_x")
-                box_pose.pose.position.y = rospy.get_param("cube_"+str(index)+"_y")
-                box_pose.pose.position.z = rospy.get_param("cube_"+str(index)+"_z")-0.787
-                self.scene.add_box("cube_"+str(index), box_pose, size=(0.045, 0.045, 0.045))
-    def set_cube(self,cube_index):
-        if rospy.has_param("cube_"+str(cube_index)+"_x"):
-                box_pose = geometry_msgs.msg.PoseStamped()
-                box_pose.header.frame_id = "panda_link0"
-                box_pose.pose.orientation.w = rospy.get_param("cube_"+str(cube_index)+"_orient_w")
-                box_pose.pose.orientation.x = rospy.get_param("cube_"+str(cube_index)+"_orient_x")
-                box_pose.pose.orientation.y = rospy.get_param("cube_"+str(cube_index)+"_orient_y")
-                box_pose.pose.orientation.z = rospy.get_param("cube_"+str(cube_index)+"_orient_z")
-                box_pose.pose.position.x = rospy.get_param("cube_"+str(cube_index)+"_x")
-                box_pose.pose.position.y = rospy.get_param("cube_"+str(cube_index)+"_y")
-                box_pose.pose.position.z = rospy.get_param("cube_"+str(cube_index)+"_z")-0.787
-                self.scene.add_box("cube_"+str(cube_index), box_pose, size=(0.045, 0.045, 0.045))
+
+        
+    def set_cube_env(self,pose=geometry_msgs.msg.Pose(),cube_name="cube0"):
+        box_pose = geometry_msgs.msg.PoseStamped()
+        box_pose.header.frame_id = "panda_link0"
+        box_pose.pose = pose
+        box_pose.pose.position.z -= 0.787
+        self.scene.add_box(cube_name, box_pose, size=(0.045, 0.045, 0.045))
 
 
     def set_envirorment(self):
