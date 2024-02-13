@@ -32,7 +32,7 @@ def capture_image():
     i = 0
     image = sl.Mat()
     runtime_parameters = sl.RuntimeParameters()
-    while i < 1:
+    while i < 5:
         if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
             # A new image is available if grab() returns SUCCESS
             zed.retrieve_image(image, sl.VIEW.LEFT)
@@ -77,7 +77,7 @@ def capture_depth_image():
     image = sl.Mat()
     depth_map = sl.Mat()
     runtime_parameters = sl.RuntimeParameters()
-    while i < 1:
+    while i < 5:
         if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH) # Retrieve depth map
 

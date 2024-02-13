@@ -26,7 +26,8 @@ lines_maxgap = 10
 
 
 # start
-img = load_image("img1.png")
+#img = load_image("img1.png")
+img = capture_image()
 img = cv2.resize(img, (0,0), fx=0.5, fy=0.5)
 window_name = 'image'
 

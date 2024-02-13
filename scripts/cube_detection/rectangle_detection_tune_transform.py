@@ -7,25 +7,26 @@ from get_image import capture_image, capture_depth_image, load_image
 
 
 # initial values
-blur = 7
+blur = 8
 blur_sigmacol = 0.0
 blur_sigmaspace = 0.0
-morph_ksize = 7
-th_blocksize = 185
+morph_ksize = 5
+# th_blocksize = 185
+th_blocksize = 213
 th_c = 4
 canny_aperturesize = 3
 canny_L2gradient = True
 dil_ksize = 1
-area_min = 500
-area_max = 10000
+area_min = 364
+area_max = 2832
 cnt_thickness = 1
-poly_eps = 0.026
+poly_eps = 0.054
 
 
 # start
 #img = load_image("img2.png")
 img = capture_image()
-#img_depth = capture_depth_image()
+img_depth = capture_depth_image()
 scaling = 1
 
 img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
@@ -120,6 +121,9 @@ def run(img_to_show=None):
     if img_to_show in ['cnt_thickness', 'area_min', 'area_max']:
         cv2.imshow(window_name, contour_img)
 
+    # store all center points
+    center_points = []
+
     # create shape image containing detected rectangles
     shapes_img = img.copy()
     cube_count = 0
@@ -127,14 +131,19 @@ def run(img_to_show=None):
         x1, y1 = cnt[0][0]
         approx = cv2.approxPolyDP(cnt, poly_eps * cv2.arcLength(cnt, True), True)
         if len(approx) == 4:
-            # TODO: filter cubes: ensure that the 4 edges have approximately the same length
-            shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
-            shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
-            center_x, center_y = center_of_points(approx)
-            print("center: ", center_x, center_y)
-            cv2.circle(shapes_img, (round(center_x), round(center_y)), 2, (0, 255, 0), 1)
-            cv2.putText(shapes_img, 'Cube', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            cube_count += 1
+            len1 = np.linalg.norm(approx[0, 0] - approx[1, 0])
+            len2 = np.linalg.norm(approx[1, 0] - approx[2, 0])
+            print(abs(len1 - len2))
+            if abs(len1 - len2) <= 20:
+                shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
+                shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
+                center_x, center_y = center_of_points(approx)
+                center_depth = img_depth.get_value(center_x, center_y)
+                print("center_x:", center_x, "center_y:", center_y, "center_depth:", center_depth)
+                center_points.append([center_x, center_y, center_depth])
+                cv2.circle(shapes_img, (round(center_x), round(center_y)), 2, (0, 255, 0), 1)
+                cv2.putText(shapes_img, 'Cube', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                cube_count += 1
 
     if img_to_show in ['poly_eps']:
         cv2.imshow(window_name, shapes_img)
@@ -145,6 +154,8 @@ def run(img_to_show=None):
     # show always result img
     cv2.putText(shapes_img, f'cubes detected: {cube_count}', (10, shapes_img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
     cv2.imshow("result", shapes_img)
+
+    points_3d = transform(center_points, None)
 
 
 def change_blur(x):
@@ -235,28 +246,22 @@ def change_morph_ksize(x):
         print("morph_ksize:", morph_ksize)
         run('morph_ksize')
         
-def transform(point_2d):
+def transform(points_2d, current_pose=None):
 
-    if not self.grasp_running:
-        rospy.loginfo("Processing the Image to locate the Object...")
-        try:
-            cv_image = cv_bridge.CvBridge().imgmsg_to_cv2(msg, desired_encoding="bgr8")
-        except cv_bridge.CvBridgeError as e:
-            rospy.logerror("cv_bridge exception: %s", e)
-            return
+    points_3d = []
+    for point_2d in points_2d:
 
-        obj_x, obj_y = self.vMng_.get_2d_location(cv_image)
-        rospy.loginfo("X-Co-ordinate in Camera Frame: %f", obj_x)
-        rospy.loginfo("Y-Co-ordinate in Camera Frame: %f", obj_y)
+        cube_x, cube_y, cube_depth = point_2d
+
+        print("X-Co-ordinate in Camera Frame: %f", cube_x)
+        print("Y-Co-ordinate in Camera Frame: %f", cube_y)
 
         f_x = 526.945
         f_y = 526.945	
         pp_x = 648.178
         pp_y = 358.773
 
-        depth_pts = cv2.imread.getDepth(obj_x, obj_y)/1000  # mm
-
-
+        """
         holder_pos_x = -0.097397
         holder_pos_y = -0.06
         holder_pos_z = 0.0274111
@@ -278,24 +283,24 @@ def transform(point_2d):
 
         # Combine translation and rotation to get the transformation matrix
         camera2lefteye_matrix = np.dot(rotation_matrix, translation_matrix)
+        """
 
 
+        
+        z_3d = cube_depth
+        y_3d = (cube_y - pp_y)* cube_depth/f_y
+        x_3d = (cube_x - pp_x)* cube_depth/f_x
 
-        self.obj_camera_frame = geometry_msgs.msg.Point()
-        self.obj_camera_frame.z = 1.0
-        self.obj_camera_frame.y = (obj_y - pp_y)* depth_pts/f_y
-        self.obj_camera_frame.x = (obj_x - pp_x)* depth_pts/f_x
-
-        translation = np.array([[1, 0, 0, -obj_x + pp_x],
-                    [0, 1, 0, -obj_y + pp_y],
-                    [0, 0, 1, -depth_pts],
-                    [0, 0, 0, 1]])
+        translation = np.array([[1, 0, 0, x_3d],
+                                [0, 1, 0, y_3d],
+                                [0, 0, 1, z_3d],
+                                [0, 0, 0, 1]])
 
         # Create a 4x4 identity matrix
         rotation = np.eye(4)
 
         # Combine translation and rotation to get the transformation matrix
-        cube2camera_matrix = np.dot(rotation, translation)
+        cube2left_camera_matrix = np.dot(rotation, translation)
         
         
         # <xacro:arg name="zed_pos_x"     default="-0.087397" /> 
@@ -303,13 +308,13 @@ def transform(point_2d):
         # <xacro:arg name="zed_pos_z"     default="0.0374111" />
         # <xacro:arg name="zed_roll"      default="0.000374354" />
         # <xacro:arg name="zed_pitch"     default="0.746327" />
-        # <xacro:arg name="zed_yaw"       default="-1.57774" />
-        zed_pos_x = -0.087397
-        zed_pos_y = 0.0523762
-        zed_pos_z = 0.0374111
-        zed_roll = 0.000374354
-        zed_pitch = 0.746327
-        zed_yaw = -1.57774
+        # <xacro:arg name="zed_yaw"       default="-1.57774" />        
+        zed_pos_x = -0.11
+        zed_pos_y = 0.056
+        zed_pos_z = 0.035
+        zed_roll = 0
+        zed_pitch = -1.35
+        zed_yaw = 0
 
         # Create translation matrix
         translation_matrix = np.array([[1, 0, 0, zed_pos_x],
@@ -324,20 +329,31 @@ def transform(point_2d):
                                     [0, 0, 0, 1]])
 
         # Combine translation and rotation to get the transformation matrix
-        camera2eef_matrix = np.dot(rotation_matrix, translation_matrix)
+        left_camera2eef_matrix = np.dot(rotation_matrix, translation_matrix)
 
         # extracted from initial pose 0_T_eff:
-        eef2base_matrix = np.array([0.900853, -0.0270615, -0.433258, 0],
-                                    [-0.0202124, -0.999578, 0.0204074, 0],
-                                    [-0.433635, -0.00962709, -0.901037, 0],
-                                    [0.466656, -0.0297833, 0.411497, 1])
+        if current_pose is not None:
+            eef2base_matrix = np.array(current_pose).T
+        else:
+            eef2base_matrix = np.array([[0.900853, -0.0270615, -0.433258, 0],
+                                        [-0.0202124, -0.999578, 0.0204074, 0],
+                                        [-0.433635, -0.00962709, -0.901037, 0],
+                                        [0.466656, -0.0297833, 0.411497, 1]]).T
 
-        self.object2base = cube2camera_matrix * camera2eef_matrix * eef2base_matrix
-        self.grasp_running = True
 
-        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getX())
-        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getY())
-        rospy.loginfo("X-Co-ordinate in Robot Frame: %f", self.obj_robot_frame.getZ())
+        cube2base = eef2base_matrix @ left_camera2eef_matrix @ cube2left_camera_matrix
+
+        point = geometry_msgs.msg.Point()
+        point.x = cube2base[0][3]
+        point.y = cube2base[1][3]
+        point.z = cube2base[2][3]
+        points_3d.append(point)
+
+        print("X-Co-ordinate in Robot Frame: %f", point.x)
+        print("Y-Co-ordinate in Robot Frame: %f", point.y)
+        print("Z-Co-ordinate in Robot Frame: %f", point.z)
+
+    return points_3d
 
 
 cv2.imshow(window_name, img)
@@ -349,11 +365,11 @@ cv2.createTrackbar('blur_sigmacol', window_name, 0, 300, change_blur_sigmacol)
 cv2.createTrackbar('blur_sigmaspace', window_name, 0, 300, change_blur_sigmaspace)
 cv2.createTrackbar('morph_ksize', window_name, 5, 50, change_morph_ksize)
 cv2.createTrackbar('th_blocksize', window_name, 213, 255, change_th_blocksize) # 30
-cv2.createTrackbar('th_c', window_name, 4, 255, change_th_c) # 30
-cv2.createTrackbar('canny_aperturesize', window_name, 3, 7, change_canny_aperturesize)
-cv2.createTrackbar('canny_L2gradient', window_name, 1, 1, change_canny_L2gradient)
-cv2.createTrackbar('dil_ksize', window_name, 1, 100, change_dil_ksize)
-cv2.createTrackbar('cnt_thickness', window_name, 1, 10, change_cnt_thickness)
+#cv2.createTrackbar('th_c', window_name, 4, 255, change_th_c) # 30
+#cv2.createTrackbar('canny_aperturesize', window_name, 3, 7, change_canny_aperturesize)
+#cv2.createTrackbar('canny_L2gradient', window_name, 1, 1, change_canny_L2gradient)
+# cv2.createTrackbar('dil_ksize', window_name, 1, 100, change_dil_ksize)
+# cv2.createTrackbar('cnt_thickness', window_name, 1, 10, change_cnt_thickness)
 cv2.createTrackbar('area_min', window_name, 364, 10000, change_area_min)
 cv2.createTrackbar('area_max', window_name, 2832, 10000, change_area_max)
 cv2.createTrackbar('poly_eps', window_name, 54, 100, change_poly_eps)
