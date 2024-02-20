@@ -12,7 +12,8 @@ class CubeDetectionNode:
         self.detection_service = rospy.Service('CubeDetection', GetPoints, self.handle_cube_detection) 
         
         self.tf_cam2base_lst = tf.TransformListener()
-        rospy.loginfo("Start to detect cube...")
+
+        rospy.loginfo("Start to obtain raw image...")
         rospy.Subscriber("/camera/image_raw", Image, self.imageCb)
 
     def imageCb(self, msg):

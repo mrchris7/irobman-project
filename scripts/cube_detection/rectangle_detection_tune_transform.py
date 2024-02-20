@@ -3,7 +3,9 @@
 import rospy
 import cv2
 import numpy as np
-from get_image import capture_image, capture_depth_image, load_image
+from get_image import *
+import tf
+from geometry_msgs.msg import Point
 
 
 # initial values
@@ -24,9 +26,10 @@ poly_eps = 0.054
 
 
 # start
-#img = load_image("img2.png")
-img = capture_image()
-img_depth = capture_depth_image()
+# img = load_image("img2.png")
+# img = capture_image()
+# img_depth = capture_depth_image()
+img, img_depth = capture_rgbd_image()
 scaling = 1
 
 img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
@@ -291,63 +294,95 @@ def transform(points_2d, current_pose=None):
         y_3d = (cube_y - pp_y)* cube_depth/f_y
         x_3d = (cube_x - pp_x)* cube_depth/f_x
 
-        translation = np.array([[1, 0, 0, x_3d],
-                                [0, 1, 0, y_3d],
-                                [0, 0, 1, z_3d],
-                                [0, 0, 0, 1]])
+        obj_camera_frame = np.array([x_3d, y_3d, z_3d])
 
-        # Create a 4x4 identity matrix
-        rotation = np.eye(4)
+        rospy.init_node("transform_listener")
 
-        # Combine translation and rotation to get the transformation matrix
-        cube2left_camera_matrix = np.dot(rotation, translation)
-        
-        
-        # <xacro:arg name="zed_pos_x"     default="-0.087397" /> 
-        # <xacro:arg name="zed_pos_y"     default="0.0523762" />   
-        # <xacro:arg name="zed_pos_z"     default="0.0374111" />
-        # <xacro:arg name="zed_roll"      default="0.000374354" />
-        # <xacro:arg name="zed_pitch"     default="0.746327" />
-        # <xacro:arg name="zed_yaw"       default="-1.57774" />        
-        zed_pos_x = -0.11
-        zed_pos_y = 0.056
-        zed_pos_z = 0.035
-        zed_roll = 0
-        zed_pitch = -1.35
-        zed_yaw = 0
+        listener = tf.TransformListener()
 
-        # Create translation matrix
-        translation_matrix = np.array([[1, 0, 0, zed_pos_x],
-                                        [0, 1, 0, zed_pos_y],
-                                        [0, 0, 1, zed_pos_z],
-                                        [0, 0, 0, 1]])
+        rate = rospy.Rate(10.0)  # Adjust the rate as needed
 
-        # Create rotation matrix
-        rotation_matrix = np.array([[np.cos(zed_yaw)*np.cos(zed_pitch), -np.sin(zed_yaw)*np.cos(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), np.sin(zed_yaw)*np.sin(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
-                                    [np.sin(zed_yaw)*np.cos(zed_pitch), np.cos(zed_yaw)*np.cos(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), -np.cos(zed_yaw)*np.sin(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
-                                    [-np.sin(zed_pitch), np.cos(zed_pitch)*np.sin(zed_roll), np.cos(zed_pitch)*np.cos(zed_roll), 0],
-                                    [0, 0, 0, 1]])
+        while not rospy.is_shutdown():
+            try:
+                # Get the transform from "panda_hand" to "zed2_left_camera_frame"
+                (trans, rot) = listener.lookupTransform("base_link", "zed2_left_camera_frame", rospy.Time(0))
+                
+                # Create a message to store the transform
+                tf_msg = tf.TransformerROS().fromTranslationRotation(trans, rot)
+                
+                # Call the callback function with the received transform message
+                rospy.loginfo("Transform received:")
+                rospy.loginfo("Translation:", tf_msg.translation)
+                rospy.loginfo("Rotation:", tf_msg.rotation)
 
-        # Combine translation and rotation to get the transformation matrix
-        left_camera2eef_matrix = np.dot(rotation_matrix, translation_matrix)
-
-        # extracted from initial pose 0_T_eff:
-        if current_pose is not None:
-            eef2base_matrix = np.array(current_pose).T
-        else:
-            eef2base_matrix = np.array([[0.900853, -0.0270615, -0.433258, 0],
-                                        [-0.0202124, -0.999578, 0.0204074, 0],
-                                        [-0.433635, -0.00962709, -0.901037, 0],
-                                        [0.466656, -0.0297833, 0.411497, 1]]).T
-
-
-        cube2base = eef2base_matrix @ left_camera2eef_matrix @ cube2left_camera_matrix
-
-        point = geometry_msgs.msg.Point()
-        point.x = cube2base[0][3]
-        point.y = cube2base[1][3]
-        point.z = cube2base[2][3]
+                camera_to_robot_ = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
+                obj_robot_frame = np.dot(camera_to_robot_, obj_camera_frame)
+            
+            except (tf.Exception, tf.LookupException, tf.ConnectivityException) as e:
+                rospy.logerr("TF Exception: %s" % e)
+        point = Point()
+        point.x = obj_robot_frame[0]
+        point.y = obj_robot_frame[1]
+        point.z = obj_robot_frame[2]
         points_3d.append(point)
+
+        # # translation = np.array([[1, 0, 0, x_3d],
+        # #                         [0, 1, 0, y_3d],
+        # #                         [0, 0, 1, z_3d],
+        # #                         [0, 0, 0, 1]])
+
+        # # # Create a 4x4 identity matrix
+        # # rotation = np.eye(4)
+
+        # # # Combine translation and rotation to get the transformation matrix
+        # # cube2left_camera_matrix = np.dot(rotation, translation)
+        
+        
+        # # <xacro:arg name="zed_pos_x"     default="-0.087397" /> 
+        # # <xacro:arg name="zed_pos_y"     default="0.0523762" />   
+        # # <xacro:arg name="zed_pos_z"     default="0.0374111" />
+        # # <xacro:arg name="zed_roll"      default="0.000374354" />
+        # # <xacro:arg name="zed_pitch"     default="0.746327" />
+        # # <xacro:arg name="zed_yaw"       default="-1.57774" />        
+        # zed_pos_x = -0.11
+        # zed_pos_y = 0.056
+        # zed_pos_z = 0.035
+        # zed_roll = 0
+        # zed_pitch = -1.35
+        # zed_yaw = 0
+
+        # # Create translation matrix
+        # translation_matrix = np.array([[1, 0, 0, zed_pos_x],
+        #                                 [0, 1, 0, zed_pos_y],
+        #                                 [0, 0, 1, zed_pos_z],
+        #                                 [0, 0, 0, 1]])
+
+        # # Create rotation matrix
+        # rotation_matrix = np.array([[np.cos(zed_yaw)*np.cos(zed_pitch), -np.sin(zed_yaw)*np.cos(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), np.sin(zed_yaw)*np.sin(zed_roll) + np.cos(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
+        #                             [np.sin(zed_yaw)*np.cos(zed_pitch), np.cos(zed_yaw)*np.cos(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.sin(zed_roll), -np.cos(zed_yaw)*np.sin(zed_roll) + np.sin(zed_yaw)*np.sin(zed_pitch)*np.cos(zed_roll), 0],
+        #                             [-np.sin(zed_pitch), np.cos(zed_pitch)*np.sin(zed_roll), np.cos(zed_pitch)*np.cos(zed_roll), 0],
+        #                             [0, 0, 0, 1]])
+
+        # # Combine translation and rotation to get the transformation matrix
+        # left_camera2eef_matrix = np.dot(rotation_matrix, translation_matrix)
+
+        # # extracted from initial pose 0_T_eff:
+        # if current_pose is not None:
+        #     eef2base_matrix = np.array(current_pose).T
+        # else:
+        #     eef2base_matrix = np.array([[0.900853, -0.0270615, -0.433258, 0],
+        #                                 [-0.0202124, -0.999578, 0.0204074, 0],
+        #                                 [-0.433635, -0.00962709, -0.901037, 0],
+        #                                 [0.466656, -0.0297833, 0.411497, 1]]).T
+
+
+        # cube2base = eef2base_matrix @ left_camera2eef_matrix @ cube2left_camera_matrix
+
+        # point = Point()
+        # point.x = cube2base[0][3]
+        # point.y = cube2base[1][3]
+        # point.z = cube2base[2][3]
+        # points_3d.append(point)
 
         print("X-Co-ordinate in Robot Frame: %f", point.x)
         print("Y-Co-ordinate in Robot Frame: %f", point.y)

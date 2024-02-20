@@ -93,7 +93,40 @@ def capture_depth_image():
 
     return img
 
+def capture_rgbd_image():
+    # Create a ZED camera object
+    zed = sl.Camera()
 
+    # Set configuration parameters
+    init_params = sl.InitParameters()
+    init_params.depth_mode = sl.DEPTH_MODE.NEURAL  # Set depth mode
+    init_params.camera_resolution = sl.RESOLUTION.HD720  # Set camera resolution
+
+    # Open the camera
+    err = zed.open(init_params)
+    if err != sl.ERROR_CODE.SUCCESS:
+        print(f"Failed to open ZED camera: {str(err)}")
+        exit()
+
+    # Capture data
+    runtime_parameters = sl.RuntimeParameters()
+    depth = sl.Mat()
+    image = sl.Mat()
+
+    if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
+        # Retrieve depth map
+        zed.retrieve_measure(depth, sl.MEASURE.MEASURE_DEPTH)
+
+        # Retrieve RGB image
+        zed.retrieve_image(image, sl.VIEW.VIEW_LEFT)
+
+        # Convert depth map and RGB image to numpy arrays
+        depth_data = depth.get_data()
+        rgb_data = image.get_data()
+    
+    # Close the camera
+    zed.close()
+    return rgb_data, depth_data
 
 IMG_PATH = '/opt/ros_ws/src/irobman-project/scripts/cube_detection/imgs/'
 def load_image(img_name):
