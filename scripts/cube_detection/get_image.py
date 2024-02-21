@@ -115,10 +115,10 @@ def capture_rgbd_image():
 
     if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
         # Retrieve depth map
-        zed.retrieve_measure(depth, sl.MEASURE.MEASURE_DEPTH)
+        zed.retrieve_measure(depth, sl.MEASURE.DEPTH)
 
         # Retrieve RGB image
-        zed.retrieve_image(image, sl.VIEW.VIEW_LEFT)
+        zed.retrieve_image(image, sl.VIEW.LEFT)
 
         # Convert depth map and RGB image to numpy arrays
         depth_data = depth.get_data()
