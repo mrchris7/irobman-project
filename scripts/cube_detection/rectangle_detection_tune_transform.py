@@ -141,7 +141,8 @@ def run(img_to_show=None):
                 shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
                 shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
                 center_x, center_y = center_of_points(approx)
-                center_depth = img_depth.get_value(center_x, center_y)
+                print(img_depth.shape)
+                center_depth = img_depth[int(center_y), int(center_x)]
                 print("center_x:", center_x, "center_y:", center_y, "center_depth:", center_depth)
                 center_points.append([center_x, center_y, center_depth])
                 cv2.circle(shapes_img, (round(center_x), round(center_y)), 2, (0, 255, 0), 1)
