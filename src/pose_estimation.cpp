@@ -24,10 +24,10 @@ PoseEstimationNode::PoseEstimationNode() {
     renderer_geometry_ptr_ = std::make_shared<icg::RendererGeometry>("renderer geometry");
 
     // Set up cameras
-    //color_camera_ptr_ = std::make_shared<icg::ZEDColorCamera>("zed_color");
-    //depth_camera_ptr_ = std::make_shared<icg::ZEDDepthCamera>("zed_depth");
-    color_camera_ptr_ = std::make_shared<icg::TestColorCamera>("test_color");
-    depth_camera_ptr_ = std::make_shared<icg::TestDepthCamera>("test_depth");
+    color_camera_ptr_ = std::make_shared<icg::ZEDColorCamera>("zed_color");
+    depth_camera_ptr_ = std::make_shared<icg::ZEDDepthCamera>("zed_depth");
+    //color_camera_ptr_ = std::make_shared<icg::TestColorCamera>("test_color");
+    //depth_camera_ptr_ = std::make_shared<icg::TestDepthCamera>("test_depth");
 
     // Set up viewers
     if (kUseColorViewer) {

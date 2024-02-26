@@ -23,8 +23,8 @@
 #include <icg/renderer_geometry.h>
 #include <icg/static_detector.h>
 #include <icg/tracker.h>
-//#include <icg/zed_camera.h>
-#include <icg/test_camera.h>
+#include <icg/zed_camera.h>
+//#include <icg/test_camera.h>
 #include <icg/ros_publisher.h>
 #include <Eigen/Geometry>
 
@@ -56,12 +56,12 @@ private:
     std::filesystem::path directory_;
     std::shared_ptr<icg::Tracker> tracker_ptr_;
     std::shared_ptr<icg::RendererGeometry> renderer_geometry_ptr_;
-    //std::shared_ptr<icg::ZEDColorCamera> color_camera_ptr_;
-    //std::shared_ptr<icg::ZEDDepthCamera> depth_camera_ptr_;
+    std::shared_ptr<icg::ZEDColorCamera> color_camera_ptr_;
+    std::shared_ptr<icg::ZEDDepthCamera> depth_camera_ptr_;
     std::shared_ptr<icg::NormalColorViewer> color_viewer_ptr_;
     std::shared_ptr<icg::NormalDepthViewer> depth_viewer_ptr_;
-    std::shared_ptr<icg::TestColorCamera> color_camera_ptr_;
-    std::shared_ptr<icg::TestDepthCamera> depth_camera_ptr_;
+    //std::shared_ptr<icg::TestColorCamera> color_camera_ptr_;
+    //std::shared_ptr<icg::TestDepthCamera> depth_camera_ptr_;
     std::shared_ptr<icg::FocusedBasicDepthRenderer> color_depth_renderer_ptr_;
     std::shared_ptr<icg::FocusedBasicDepthRenderer> depth_depth_renderer_ptr_;
 

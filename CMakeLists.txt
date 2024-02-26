@@ -23,6 +23,12 @@ find_package(catkin REQUIRED COMPONENTS
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen3 3.3.2 REQUIRED)
 find_package(OpenCV 4.0.0 REQUIRED)
+find_package(ZED REQUIRED)
+include_directories(${ZED_INCLUDE_DIRS})
+list(APPEND LIBRARIES ${ZED_LIBRARIES})
+find_package(CUDA REQUIRED)
+include_directories(${CUDA_INCLUDE_DIRS})
+list(APPEND LIBRARIES ${CUDA_LIBRARIES})
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -134,6 +140,8 @@ include_directories(
   ${pose_estimation_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${ZED_INCLUDE_DIRS}
+  ${CUDA_INCLUDE_DIRS}
   pose_estimation/ICG/include
   pose_estimation/ICG/include/icg
 )
@@ -169,6 +177,8 @@ add_executable(pose_estimation_node
 ## Specify libraries to link a library or executable target against
 target_link_libraries(pose_estimation_node
   ${catkin_LIBRARIES}
+  ${ZED_LIBRARIES}
+  ${CUDA_LIBRARIES}
   pose_estimation
 )
 
