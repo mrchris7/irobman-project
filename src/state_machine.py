@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rospy
 from enum import Enum
 from geometry_msgs.msg import Pose
@@ -34,6 +36,7 @@ class StateMachine:
         self.cartesian_planning_client = rospy.ServiceProxy('CartesianMotionPlanning', CartesianMotionPlanning)
         self.joint_planning_client = rospy.ServiceProxy('JointMotionPlanning', JointMotionPlanning)
         self.close_gripper_client = rospy.ServiceProxy('GripperControl', SetBool)
+        self.move_to_cube_client = rospy.ServiceProxy('MoveToCube', CartesianMotionPlanning)
         
         # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
         self.eef_pose_sub = rospy.Subscriber('eff_pose', Pose, self.handle_eff_pose)
@@ -125,6 +128,8 @@ class StateMachine:
     def choose_target_pose(self, poses: List[Pose]):
         # TODO: choose a target cube out of all detected cube poses
         #       i.e. return the pose of the cube that is nearest to the end-effector (self.pose_eff)
+        rospy.logwarn(f"all poses: {poses}")
+        rospy.logwarn(f"choose pose: {poses[0]}")
         return poses[0]
     
 
@@ -140,8 +145,7 @@ class StateMachine:
         rospy.wait_for_service('JointMotionPlanning')
 
         js = JointState()
-        js.name = list(self.init_joints.keys())
-        js.position = list(self.init_joints.values())
+        js.position = list(self.init_joints)
 
         res = self.joint_planning_client(js)
         
@@ -210,8 +214,8 @@ class StateMachine:
         # TODO: check if gripper is already closed -> if so, open it first
         #       add a service "IsGripperClosed" to the motion planner node (create GetBool.srv)
 
-        rospy.wait_for_service('CartesianMotionPlanning')
-        res = self.cartesian_planning_client(pose)  # TODO: responsible for a good grapsing-strategy
+        rospy.wait_for_service('MoveToCube')
+        res = self.move_to_cube_client(pose)  # TODO: responsible for a good grapsing-strategy
 
         if not res.success:
             self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)

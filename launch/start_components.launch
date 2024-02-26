@@ -14,5 +14,7 @@
   <rosparam file="$(find irobman_project)/config/general_config.yaml" command="load" />
   
   <!-- Launch nodes -->
-  <node name="state_machine" pkg="irobman_project" type="state_machine.py" output="screen" />
+  <node name="pose_estimation" pkg="irobman_project" type="pose_estimation_node" output="screen" />
+  <node name="motion_planner" pkg="irobman_project" type="motion_planner.py" output="screen" />
+  <node name="cube_detection" pkg="irobman_project" type="cube_detection.py" output="screen" />
 </launch>
