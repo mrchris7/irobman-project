@@ -9,30 +9,35 @@ PoseEstimationNode::PoseEstimationNode() {
     retrieve_service_ = nh_.advertiseService("RetrieveTrackedPoses", &PoseEstimationNode::handleRetrievePoses, this);
 
     // Set up tracker
-    const std::filesystem::path directory{"/path/to/directory"};
+    directory_ = "/opt/ros_ws/src/pose-estimation/ICG/data/cube";
 
     constexpr bool kUseDepthViewer = false;
-    constexpr bool kMeasureOcclusions = true;
-    constexpr bool kModelOcclusions = false;
-    constexpr bool kVisualizePoseResult = false;
+    constexpr bool kUseColorViewer = false;
+    kMeasureOcclusions_ = true;
+    kModelOcclusions_ = false;
+    kVisualizePoseResult_ = false;
     constexpr bool kSaveImages = false;
-    const std::filesystem::path save_directory{""};
+    std::filesystem::path save_directory{""};
 
     // Set up tracker and renderer geometry
     tracker_ptr_ = std::make_shared<icg::Tracker>("tracker");
     renderer_geometry_ptr_ = std::make_shared<icg::RendererGeometry>("renderer geometry");
 
     // Set up cameras
-    color_camera_ptr_ = std::make_shared<icg::ZEDColorCamera>("zed_color");
-    depth_camera_ptr_ = std::make_shared<icg::ZEDDepthCamera>("zed_depth");
+    //color_camera_ptr_ = std::make_shared<icg::ZEDColorCamera>("zed_color");
+    //depth_camera_ptr_ = std::make_shared<icg::ZEDDepthCamera>("zed_depth");
+    color_camera_ptr_ = std::make_shared<icg::TestColorCamera>("test_color");
+    depth_camera_ptr_ = std::make_shared<icg::TestDepthCamera>("test_depth");
 
     // Set up viewers
-    color_viewer_ptr_ = std::make_shared<icg::NormalColorViewer>("color_viewer", color_camera_ptr_, renderer_geometry_ptr_);
-    if (kSaveImages) color_viewer_ptr_->StartSavingImages(save_directory, "bmp");
-    tracker_ptr_->AddViewer(color_viewer_ptr_);
+    if (kUseColorViewer) {
+        color_viewer_ptr_ = std::make_shared<icg::NormalColorViewer>("color_viewer", color_camera_ptr_, renderer_geometry_ptr_);
+        if (kSaveImages) color_viewer_ptr_->StartSavingImages(save_directory, "png");
+        tracker_ptr_->AddViewer(color_viewer_ptr_);
+    }
     if (kUseDepthViewer) {
         depth_viewer_ptr_ = std::make_shared<icg::NormalDepthViewer>("depth_viewer", depth_camera_ptr_, renderer_geometry_ptr_, 0.3f, 1.0f);
-        if (kSaveImages) depth_viewer_ptr_->StartSavingImages(save_directory, "bmp");
+        if (kSaveImages) depth_viewer_ptr_->StartSavingImages(save_directory, "png");
         tracker_ptr_->AddViewer(depth_viewer_ptr_);
     }
 
@@ -53,7 +58,7 @@ PoseEstimationNode::PoseEstimationNode() {
 bool PoseEstimationNode::handleToggleTracker(std_srvs::SetBool::Request& req,
                                              std_srvs::SetBool::Response& res) {
     if (req.data == true) {
-        tracker_ptr_->StartTracking(false, true);
+        tracker_ptr_->StartTracking();
     }
     else {
         tracker_ptr_->StopTracking();
@@ -62,19 +67,21 @@ bool PoseEstimationNode::handleToggleTracker(std_srvs::SetBool::Request& req,
     return true;
 }
 
-bool PoseEstimationNode::handlePrepareTracker(irobman::SetPoints::Request& req,
-                                              irobman::SetPoints::Response& res) {
+bool PoseEstimationNode::handlePrepareTracker(irobman_project::SetPoints::Request& req,
+                                              irobman_project::SetPoints::Response& res) {
+    
     tracker_ptr_->StopTracking();
     
     // Remove all bodies from the tracker (and all objs that have something to do with it)
-    // TODO: if this is to slow in practice
-    //       -> use clear-functions of individual objects to make the setup faster
     tracker_ptr_->ClearDetectors();
-    tracker_ptr_->ClearBodies();  // already cleared if detectors are cleared?
     tracker_ptr_->ClearPublishers();
     tracker_ptr_->ClearOptimizers();
+    renderer_geometry_ptr_->ClearBodies();
+    color_depth_renderer_ptr_->ClearReferencedBodies();
+    depth_depth_renderer_ptr_->ClearReferencedBodies();
+    body_ptrs_.clear();
 
-    std::vector<std::shared_ptr<icg::Body>> body_ptrs;
+    //std::vector<std::shared_ptr<icg::Body>> body_ptrs;  // needs to be a member, otherwise segmentation fault
     int num_points = req.points.size();
 
     // Create a new body (and dependent objects) for every detected cube
@@ -84,26 +91,36 @@ bool PoseEstimationNode::handlePrepareTracker(irobman::SetPoints::Request& req,
         const auto& point = req.points[i];
 
         // Set up body
-        std::filesystem::path metafile_path{directory / (body_name + ".yaml")};
-        auto body_ptr{std::make_shared<icg::Body>(body_name, metafile_path)};
+        std::filesystem::path geometry_path{directory_ / "cube.obj"};
+        Transform3fA geometry2body_pose;
+        geometry2body_pose.matrix() << 1., 0, 0, 0,
+                                    0, 1., 0, 0,
+                                    0, 0, 1., -0.006,
+                                    0, 0, 0, 1.;
+        auto body_ptr{std::make_shared<icg::Body>(
+            body_name, geometry_path, 1.0f, true, true, geometry2body_pose)};
         renderer_geometry_ptr_->AddBody(body_ptr);
         color_depth_renderer_ptr_->AddReferencedBody(body_ptr);
         depth_depth_renderer_ptr_->AddReferencedBody(body_ptr);
         body_ptrs_.push_back(body_ptr);
 
         // Set up detector
-        std::filesystem::path detector_path{directory / (body_name + "_detector.yaml")};
+        Transform3fA body2world_pose;
+        body2world_pose.matrix() << 0.607674, 0.786584, -0.10962, -0.081876,
+                                    0.408914, -0.428214, -0.805868, -0.00546736,
+                                    -0.680823, 0.444881, -0.58186, 0.618302,
+                                    0, 0, 0, 1;
         auto detector_ptr{std::make_shared<icg::StaticDetector>(
-            body_name + "_detector", detector_path, body_ptr)};
+            body_name + "_detector", body_ptr, body2world_pose)};
         tracker_ptr_->AddDetector(detector_ptr);
 
         // Set up models
         auto region_model_ptr{std::make_shared<icg::RegionModel>(
             body_name + "_region_model", body_ptr,
-            directory / (body_name + "_region_model.bin"))};
+            directory_ / (body_name + "_region_model.bin"))};
         auto depth_model_ptr{std::make_shared<icg::DepthModel>(
             body_name + "_depth_model", body_ptr,
-            directory / (body_name + "_depth_model.bin"))};
+            directory_ / (body_name + "_depth_model.bin"))};
 
         // Set up modalities
         auto region_modality_ptr{std::make_shared<icg::RegionModality>(
@@ -112,14 +129,14 @@ bool PoseEstimationNode::handlePrepareTracker(irobman::SetPoints::Request& req,
         auto depth_modality_ptr{std::make_shared<icg::DepthModality>(
             body_name + "_depth_modality", body_ptr, depth_camera_ptr_,
             depth_model_ptr)};
-        if (kVisualizePoseResult) {
+        if (kVisualizePoseResult_) {
             region_modality_ptr->set_visualize_pose_result(true);
         }
-        if (kMeasureOcclusions) {
-            region_modality_ptr->MeasureOcclusions(depth_camera_ptr);
+        if (kMeasureOcclusions_) {
+            region_modality_ptr->MeasureOcclusions(depth_camera_ptr_);
             depth_modality_ptr->MeasureOcclusions();
         }
-        if (kModelOcclusions) {
+        if (kModelOcclusions_) {
             region_modality_ptr->ModelOcclusions(color_depth_renderer_ptr_);
             depth_modality_ptr->ModelOcclusions(depth_depth_renderer_ptr_);
         }
@@ -147,9 +164,9 @@ bool PoseEstimationNode::handlePrepareTracker(irobman::SetPoints::Request& req,
     return true;
 }
 
-bool PoseEstimationNode::handleRetrievePoses(irobman::GetPoses::Request& req,
-                                             irobman::GetPoses::Response& res) {
-    const auto& bodies = tracker_ptr_->body_ptrs();
+bool PoseEstimationNode::handleRetrievePoses(irobman_project::GetPoses::Request& req,
+                                             irobman_project::GetPoses::Response& res) {
+    const auto& bodies = tracker_ptr_->body_ptrs();  // or directly body_ptrs_ ?
 
     // Iterate over all bodies and access their pose
     for (const auto& body_ptr : bodies) {

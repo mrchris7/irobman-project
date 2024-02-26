@@ -1,4 +1,4 @@
-#include <irobman/helper.h>
+#include <helper.h>
 
 
 geometry_msgs::Pose transformToPose(const Transform3fA& transform) {
@@ -31,7 +31,7 @@ Transform3fA poseToTransform(const geometry_msgs::Pose& pose) {
                                 pose.orientation.z);
 
     Transform3fA transform;
-    transform.set_translation(translation);
+    transform.translation() = translation;
     transform.linear() = rotation.toRotationMatrix();
 
     return transform;

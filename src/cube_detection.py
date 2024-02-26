@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rospy
 from irobman_project.srv import GetPoints, GetPointsResponse
 from geometry_msgs.msg import Point
@@ -13,8 +15,7 @@ class CubeDetectionNode:
 
         # TODO: replace this placeholder with the cube detection algorithm
 
-        img = capture_image()
-
+        #img = capture_image()
 
         p1 = Point()
         p1.x = 1
@@ -40,7 +41,9 @@ class CubeDetectionNode:
          
         res = GetPointsResponse()
         res.points = cube_points
-        return res
+        res.message = "Successfully detected points"
+        res.success = True
+        return res 
 
 
 # initial values
