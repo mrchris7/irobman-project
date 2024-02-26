@@ -3,6 +3,7 @@ project(irobman_project)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
+set(CMAKE_CXX_STANDARD 17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -15,10 +16,13 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
   sensor_msgs
+  pose_estimation
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 3.3.2 REQUIRED)
+find_package(OpenCV 4.0.0 REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -76,7 +80,10 @@ add_message_files(
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
-  DEPENDENCIES std_msgs geometry_msgs sensor_msgs
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+  sensor_msgs
 )
 
 ################################################
@@ -111,7 +118,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES test2
-CATKIN_DEPENDS message_runtime rospy
+  CATKIN_DEPENDS message_runtime rospy pose_estimation
 #  DEPENDS system_lib
 )
 
@@ -122,8 +129,13 @@ CATKIN_DEPENDS message_runtime rospy
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${pose_estimation_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  pose_estimation/ICG/include
+  pose_estimation/ICG/include/icg
 )
 
 ## Declare a C++ library
@@ -139,7 +151,10 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/test2_node.cpp)
+add_executable(pose_estimation_node
+  src/pose_estimation.cpp
+  src/helper.cpp
+)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -152,9 +167,10 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(pose_estimation_node
+  ${catkin_LIBRARIES}
+  pose_estimation
+)
 
 #############
 ## Install ##

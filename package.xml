@@ -62,6 +62,9 @@
   <exec_depend>message_runtime</exec_depend>
   <build_depend>geometry_msgs</build_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <build_depend>pose_estimation</build_depend>
+  <exec_depend>pose_estimation</exec_depend>
+  <depend>opencv4</depend>
 
   <!-- <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>moveit_fake_controller_manager</exec_depend>
