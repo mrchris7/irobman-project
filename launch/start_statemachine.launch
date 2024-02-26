@@ -1,9 +1,21 @@
-<!-- NOT FINISHED -->
-
 <launch>
-  <!-- Load joint states parameters into parameter server -->
-  <rosparam file="$(find irobman-project)/config/general_config.yaml" command="load" />
+  <!-- Define arguments: -->
+  <!--
+  <arg name="use_gripper" default="true"  doc="Should the gripper be used?" />  # example
+  -->
+
+  <!-- Define parameters: -->
+  <!--
+  <param name="param_name"  value="param_value" />  # example
+  <param name="m_ee" type="double" value="0.76" if="$(arg use_gripper)" />  # example
+  -->
+
+  <!-- Load configuations into parameter server -->
+  <rosparam file="$(find irobman_project)/config/general_config.yaml" command="load" />
   
-  <!-- Launch your Python node -->
-  <node name="state_machine" pkg="irobman-project" type="state_machine.py" output="screen" />
+  <!-- Launch nodes -->
+  <node name="pose_estimation" pkg="irobman_project" type="pose_estimation_node" output="screen" />
+  <node name="motion_planner" pkg="irobman_project" type="motion_planner.py" output="screen" />
+  <node name="cube_detection" pkg="irobman_project" type="cube_detection.py" output="screen" />
+  <node name="state_machine" pkg="irobman_project" type="state_machine.py" output="screen" />
 </launch>

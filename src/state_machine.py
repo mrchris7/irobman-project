@@ -42,12 +42,12 @@ class StateMachine:
         self.detection_client = rospy.ServiceProxy('CubeDetection', GetPoints)
         
         # pose estimation
-        self.toggle_tracker_client = rospy.ServiceProxy('ToggleTracker', SetBool)
-        self.prepare_tracker_client = rospy.ServiceProxy('PrepareTracker', SetPoints)
-        self.retrieve_tracked_poses_client = rospy.ServiceProxy('RetrieveTrackedPoses', GetPoses)
+        self.toggle_tracker_client = rospy.ServiceProxy('pose_estimation/ToggleTracker', SetBool)
+        self.prepare_tracker_client = rospy.ServiceProxy('pose_estimation/PrepareTracker', SetPoints)
+        self.retrieve_tracked_poses_client = rospy.ServiceProxy('pose_estimation/RetrieveTrackedPoses', GetPoses)
 
         # setup
-        self.init_joints = rospy.get_param('init_joints')
+        self.init_joints = rospy.get_param('init_joints').values()
         self.pose_eef = Pose()
         self.tower_height = 0
         self.max_tower_height = 2
@@ -146,9 +146,8 @@ class StateMachine:
         res = self.joint_planning_client(js)
         
         if not res.success:
-            self.error_handling(res.message)
+            self.react_to_failure(res.message, self.state, Status.ERROR)
             return
-        
 
         if self.tower_height == self.max_tower_height:
             self.state = State.END
@@ -164,33 +163,35 @@ class StateMachine:
         res = self.detection_client()
 
         if not res.success:
-            self.error_handling(res.message)
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
         
         if len(res.points) == 0:
-            self.error_handling("No cubes detected. The tower cannot be build.")
+            # TODO: move to a another alternative initial pose (perhaps cubes can be detected there)
+            self.react_to_failure("No cubes detected. The tower cannot be build.", self.state, Status.Error)
+            return
 
-        rospy.wait_for_service('PrepareTracker')
+        rospy.wait_for_service('pose_estimation/PrepareTracker')
         res = self.prepare_tracker_client(res.points)
 
         if not res.success:
-            self.error_handling(res.message)
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
-        rospy.wait_for_service('ToggleTracker')
+        rospy.wait_for_service('pose_estimation/ToggleTracker')
         res = self.toggle_tracker_client(True)
         
         if not res.success:
-            self.error_handling(res.message)
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
         
         rospy.sleep(3)  # give tracker some time
 
-        rospy.wait_for_service('RetrieveTrackedPoses')
+        rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
         res = self.retrieve_tracked_poses_client()
         
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         # TODO: evaluate if poses are good, maybe filter before choosing the target?
@@ -213,7 +214,7 @@ class StateMachine:
         res = self.cartesian_planning_client(pose)  # TODO: responsible for a good grapsing-strategy
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         self.state = State.PICK_CUBE
@@ -228,7 +229,7 @@ class StateMachine:
         #       and if not res.success shold be False
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         self.state = State.MOVE_TO_TOWER
@@ -244,7 +245,7 @@ class StateMachine:
         res = self.cartesian_planning_client(tower_pose)
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         self.state = State.PLACE_CUBE
@@ -258,7 +259,7 @@ class StateMachine:
         res = self.close_gripper_client(False)
 
         if not res.success:
-            self.state = State.MOVE_TO_INITIAL_POSE
+            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         # TODO: check if placement of cube was correct
@@ -267,11 +268,16 @@ class StateMachine:
         self.state = State.MOVE_TO_INITIAL_POSE
     
 
+    def react_to_failure(self, msg, state, status=None):
+        if status is not None:
+            self.status = status
+        
+        if status == Status.ERROR:
+            rospy.logerr(msg)
+        else:
+            rospy.logwarn(msg)
 
-    ### ERROR HANDLING ###
-    def error_handling(self, err_msg):
-        rospy.logerr(err_msg)
-        self.status = Status.ERROR
+        self.state = state
 
 
 if __name__ == '__main__':
