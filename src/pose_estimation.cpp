@@ -9,7 +9,7 @@ PoseEstimationNode::PoseEstimationNode() {
     retrieve_service_ = nh_.advertiseService("RetrieveTrackedPoses", &PoseEstimationNode::handleRetrievePoses, this);
 
     // Set up tracker
-    directory_ = "/opt/ros_ws/src/pose-estimation/ICG/data/cube";
+    directory_ = "/opt/ros_ws/src/irobman-project/objs/cube";
 
     constexpr bool kUseDepthViewer = false;
     constexpr bool kUseColorViewer = false;

@@ -2,3 +2,4 @@
 __pycache__/
 .idea/
 /src/pick_and_place_module/__pycache__/
+*.bin
