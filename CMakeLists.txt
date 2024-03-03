@@ -75,6 +75,8 @@ add_message_files(
     SetPoints.srv
     GetPoses.srv
     SetPoses.srv
+    PickCube.srv
+    PlaceCube.srv
  )
 
 ## Generate actions in the 'action' folder
