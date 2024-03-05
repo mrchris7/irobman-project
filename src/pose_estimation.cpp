@@ -58,6 +58,10 @@ PoseEstimationNode::PoseEstimationNode() {
 bool PoseEstimationNode::handleToggleTracker(std_srvs::SetBool::Request& req,
                                              std_srvs::SetBool::Response& res) {
     if (req.data == true) {
+        // optional start //
+        tracker_ptr_->ExecuteDetection();
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        // optional end //
         tracker_ptr_->StartTracking();
     }
     else {
@@ -99,6 +103,13 @@ bool PoseEstimationNode::handlePrepareTracker(irobman_project::SetPoints::Reques
                                     0, 0, 0, 1.;
         auto body_ptr{std::make_shared<icg::Body>(
             body_name, geometry_path, 1.0f, true, true, geometry2body_pose)};
+        
+        Transform3fA transform;
+        transform.matrix() << 1., 0, 0, point.x,
+                              0, 1., 0, point.y,
+                              0, 0, 1., point.z,
+                              0, 0, 0, 1.;     
+        body_ptr->set_body2world_pose(transform);
         renderer_geometry_ptr_->AddBody(body_ptr);
         color_depth_renderer_ptr_->AddReferencedBody(body_ptr);
         depth_depth_renderer_ptr_->AddReferencedBody(body_ptr);
