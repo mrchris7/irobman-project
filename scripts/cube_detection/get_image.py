@@ -1,6 +1,31 @@
 import pyzed.sl as sl
 import cv2
+import rospy
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
+
+def capture_rgbd_image_ros():
+    # Initialize the node
+    rospy.init_node('zed_image_capture', anonymous=True)
+
+    # Initialize CvBridge
+    bridge = CvBridge()
+
+    # Subscribe to the color image topic
+
+    color_image_msg = rospy.wait_for_message('/zed2/zed_node/left/image_rect_color', Image)
+
+    # Convert color image message to OpenCV image
+    color_image = bridge.imgmsg_to_cv2(color_image_msg, desired_encoding="bgr8")
+
+    # Subscribe to the depth image topic
+    depth_image_msg = rospy.wait_for_message('/zed2/zed_node/depth/depth_registered', Image)
+
+    # Convert depth image message to OpenCV image
+    depth_image = bridge.imgmsg_to_cv2(depth_image_msg, desired_encoding="passthrough")
+
+    return color_image, depth_image
 
 def capture_image():
 
@@ -74,24 +99,23 @@ def capture_depth_image():
 
     # Capture 1 frame
     i = 0
-    image = sl.Mat()
     depth_map = sl.Mat()
     runtime_parameters = sl.RuntimeParameters()
     while i < 5:
         if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS:
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH) # Retrieve depth map
 
-            depth_for_display = sl.Mat()
-            zed.retrieve_image(image, sl.VIEW.DEPTH) # Retrieve depth image
+            #depth_for_display = sl.Mat()
+            #zed.retrieve_image(image, sl.VIEW.LEFT) # Retrieve depth image
 
             i = i+1
 
-    img = image.get_data()
+    #img = depth_map.get_data()
 
     # Close the camera
     zed.close()
 
-    return img
+    return depth_map
 
 def capture_rgbd_image():
     # Create a ZED camera object
@@ -102,6 +126,10 @@ def capture_rgbd_image():
     init_params.depth_mode = sl.DEPTH_MODE.NEURAL  # Set depth mode
     init_params.camera_resolution = sl.RESOLUTION.HD720  # Set camera resolution
 
+    init_params.coordinate_units = sl.UNIT.METER
+    init_params.depth_minimum_distance = 0.15  # => 15cm
+    init_params.depth_maximum_distance = 1 # => 2m
+
     # Open the camera
     err = zed.open(init_params)
     if err != sl.ERROR_CODE.SUCCESS:
@@ -110,6 +138,7 @@ def capture_rgbd_image():
 
     # Capture data
     runtime_parameters = sl.RuntimeParameters()
+    runtime_parameters.enable_fill_mode = True
     depth = sl.Mat()
     image = sl.Mat()
 
@@ -121,12 +150,12 @@ def capture_rgbd_image():
         zed.retrieve_image(image, sl.VIEW.LEFT)
 
         # Convert depth map and RGB image to numpy arrays
-        depth_data = depth.get_data()
+        #depth_data = depth.get_data()
         rgb_data = image.get_data()
     
     # Close the camera
     zed.close()
-    return rgb_data, depth_data
+    return rgb_data, depth
 
 IMG_PATH = '/opt/ros_ws/src/irobman-project/scripts/cube_detection/imgs/'
 def load_image(img_name):

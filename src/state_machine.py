@@ -33,10 +33,10 @@ class StateMachine:
         rospy.init_node('state_machine', anonymous=True)
         
         # motion planner
-        self.cartesian_planning_client = rospy.ServiceProxy('CartesianMotionPlanning', CartesianMotionPlanning)
-        self.joint_planning_client = rospy.ServiceProxy('JointMotionPlanning', JointMotionPlanning)
-        self.close_gripper_client = rospy.ServiceProxy('GripperControl', SetBool)
-        self.move_to_cube_client = rospy.ServiceProxy('MoveToCube', CartesianMotionPlanning)
+        self.cartesian_planning_client = rospy.ServiceProxy('motion_planner/CartesianMotionPlanning', CartesianMotionPlanning)
+        self.joint_planning_client = rospy.ServiceProxy('motion_planner/JointMotionPlanning', JointMotionPlanning)
+        self.close_gripper_client = rospy.ServiceProxy('motion_planner/GripperControl', SetBool)
+        self.move_to_cube_client = rospy.ServiceProxy('motion_planner/MoveToCube', CartesianMotionPlanning)
         
         # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
         self.eef_pose_sub = rospy.Subscriber('eff_pose', Pose, self.handle_eff_pose)
@@ -142,7 +142,7 @@ class StateMachine:
     ### 1. INITIAL POSE ###
     def move_to_initial_pose(self):
         
-        rospy.wait_for_service('JointMotionPlanning')
+        rospy.wait_for_service('motion_planner/JointMotionPlanning')
 
         js = JointState()
         js.position = list(self.init_joints)
@@ -214,7 +214,7 @@ class StateMachine:
         # TODO: check if gripper is already closed -> if so, open it first
         #       add a service "IsGripperClosed" to the motion planner node (create GetBool.srv)
 
-        rospy.wait_for_service('MoveToCube')
+        rospy.wait_for_service('motion_planner/MoveToCube')
         res = self.move_to_cube_client(pose)  # TODO: responsible for a good grapsing-strategy
 
         if not res.success:
@@ -227,7 +227,7 @@ class StateMachine:
     ### 4. PICK CUBE ###
     def pick_cube(self):
                 
-        rospy.wait_for_service('GripperControl')
+        rospy.wait_for_service('motion_planner/GripperControl')
         res = self.close_gripper_client(True)
         # TODO: check if cube is gripped inside motion planner node
         #       and if not res.success shold be False
@@ -245,7 +245,7 @@ class StateMachine:
 
         tower_pose = self.calculate_tower_pose()
 
-        rospy.wait_for_service('CartesianMotionPlanning')
+        rospy.wait_for_service('motion_planner/CartesianMotionPlanning')
         res = self.cartesian_planning_client(tower_pose)
 
         if not res.success:
@@ -259,7 +259,7 @@ class StateMachine:
     ### 6. PLACE CUBE ###
     def place_cube(self):
 
-        rospy.wait_for_service('GripperControl')
+        rospy.wait_for_service('motion_planner/GripperControl')
         res = self.close_gripper_client(False)
 
         if not res.success:
