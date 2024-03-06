@@ -17,5 +17,6 @@
   <node name="pose_estimation" pkg="irobman_project" type="pose_estimation_node" output="screen" />
   <node name="motion_planner" pkg="irobman_project" type="motion_planner.py" output="screen" />
   <node name="cube_detection" pkg="irobman_project" type="cube_detection.py" output="screen" />
-  <node name="capture_image" pkg="irobman_project" type="capture_image.py" output="screen" />
+  <!--<node name="capture_image" pkg="irobman_project" type="capture_image.py" output="screen" />-->
+  <node name="capture_image" pkg="pose_estimation" type="capture_image_node" output="screen" />
 </launch>

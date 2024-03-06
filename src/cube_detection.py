@@ -5,7 +5,7 @@ from irobman_project.srv import GetPoints, GetPointsResponse
 from geometry_msgs.msg import Point
 import cv2
 import numpy as np
-from irobman_project.srv import CaptureImage
+from pose_estimation.srv import CaptureImage
 from cv_bridge import CvBridge
 
 
@@ -13,6 +13,7 @@ class CubeDetectionNode:
     def __init__(self):
         rospy.init_node('cube_detection', anonymous=True)
         self.detection_service = rospy.Service('CubeDetection', GetPoints, self.handle_cube_detection) 
+        self.capture_image_client = rospy.ServiceProxy('CaptureImage', CaptureImage)
         # initial values
         self.blur = 8
         self.blur_sigmacol = 0.0
@@ -43,10 +44,7 @@ class CubeDetectionNode:
 
 
     def capture_image(self):
-
-        capture_image_client = rospy.ServiceProxy('CaptureImage', CaptureImage)
-        
-        res = capture_image_client()
+        res = self.capture_image_client()
 
         bridge = CvBridge()
         img = bridge.imgmsg_to_cv2(res.color_image, desired_encoding="bgr8")

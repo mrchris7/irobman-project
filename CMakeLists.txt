@@ -77,7 +77,6 @@ add_message_files(
     SetPoses.srv
     PickCube.srv
     PlaceCube.srv
-    CaptureImage.srv
  )
 
 ## Generate actions in the 'action' folder
