@@ -165,6 +165,7 @@ class MotionPlannerNode:
             des_z = req.pose.position.z + 0.1
             success_place_cube = self.moveit_control.go_to_pose_goal_quaternion(des_x, des_y, des_z, pick_orientation_quaternion[0], pick_orientation_quaternion[1], pick_orientation_quaternion[2], pick_orientation_quaternion[3])
             success = self.gripper.move(0.08,0.1)
+            success_postplace_cube = self.moveit_control.go_to_pose_goal_quaternion(des_x, des_y, des_z+0.1, pick_orientation_quaternion[0], pick_orientation_quaternion[1], pick_orientation_quaternion[2], pick_orientation_quaternion[3])
             if success_place_cube:
                 return True, "Cube placed"
             else:
