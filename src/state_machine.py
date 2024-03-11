@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import rospy
+import ros_numpy
+import numpy as np
 from enum import Enum
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import JointState
@@ -60,6 +62,8 @@ class StateMachine:
         self.cube_number = 0
         self.cube_dimension = 0.05
 
+        # debug
+        self.testflag = True
 
     def reset(self):
         self.pose_eef = Pose()
@@ -128,8 +132,35 @@ class StateMachine:
         # TODO: choose a target cube out of all detected cube poses
         #       i.e. return the pose of the cube that is nearest to the end-effector (self.pose_eff)
         rospy.logwarn(f"all poses: {poses}")
-        rospy.logwarn(f"choose pose: {poses[0]}")
-        return poses[0]
+        best_pose = poses[0]  # store chosen pose
+        psts_obj = np.zeros((len(poses), 3))
+        for i, pose in enumerate(poses):
+            # convert MessageType data to NumPy array 
+            pst_obj = ros_numpy.numpify(pose)[0:4, 3] # only center of object
+            psts_obj[i] = pst_obj
+
+        # method 1: neaest to end effector
+        pst_eff = ros_numpy.numpify(self.pose_eef)[0:4, 3]
+        # compute mininum distance and corresponding index
+        dist = np.linalg.norm(psts_obj - pst_eff, axis=1)
+        ind_min = np.argmin(dist)
+        best_pose = poses[ind_min]
+        rospy.logwarn(f"choose pose with min distance: {best_pose}")
+    
+        # # method 2: least neighbours
+        # threshold = 0.5  # meter
+        # num_nb = len(poses) - 1
+        # # count number of neighbours
+        # for j in range(len(poses)):
+        #     dist = np.linalg.norm(psts_obj - psts_obj[j], axis=1)
+        #     diff = dist - threshold
+        #     crr_nb = np.squeeze(np.nonzero(diff)).shape[0]
+        #     if  crr_nb < num_nb:
+        #         num_nb = crr_nb
+        #         best_pose = poses[j]
+        # rospy.logwarn(f"choose pose with min neighbours: {best_pose} with {num_nb} neighbour")
+
+        return best_pose
     
 
     def calculate_tower_pose(self):
