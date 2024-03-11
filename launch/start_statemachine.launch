@@ -15,5 +15,7 @@
   <rosparam file="$(find irobman_project)/config/tower1.yaml" command="load" />
   
   <!-- Launch nodes -->
-  <node name="state_machine" pkg="irobman_project" type="state_machine.py" output="screen" />
+  <node name="motion_planner" pkg="irobman_project" type="motion_planner.py" output="screen" />
+  <arg name="node_start_delay" default="1.0" /> 
+  <node name="state_machine" pkg="irobman_project" type="state_machine.py" output="screen" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' "/>
 </launch>

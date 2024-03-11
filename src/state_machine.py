@@ -7,6 +7,7 @@ from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
 from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning, SetPoints, GetPoints, GetPoses, PickCube, PlaceCube
+from pick_and_place_module.plan_scene import PlanScene
 from typing import List
 SIMULATION = 1
 
@@ -59,6 +60,12 @@ class StateMachine:
         self.transition_data = None  # used to transfer data between states
         self.cube_number = 0
         self.cube_dimension = 0.05
+        self.approach = 0
+
+        # Planning Scene
+        self.planning_scene = PlanScene()
+        self.planning_scene.set_table()
+        # self.planning_scene.set_env_constrains()
 
 
     def reset(self):
@@ -68,6 +75,7 @@ class StateMachine:
         self.status = Status.READY
         self.transition_data = None
         self.cube_number = 0
+        self.approach = 0
         
 
 
@@ -110,7 +118,7 @@ class StateMachine:
             self.localise_target_cube()
         
         elif state == State.PICK_CUBE:
-            self.pick_cube(data,0)
+            self.pick_cube(data)
 
         elif state == State.PLACE_CUBE:
             tower_pose = self.calculate_tower_pose()
@@ -213,6 +221,10 @@ class StateMachine:
 
             target_pose = self.choose_target_pose(res.poses)
         else:
+            poses = []
+            for i in range(4):
+                poses.append(rospy.wait_for_message('/cube_%d_odom' % i,Odometry).pose.pose)
+            self.planning_scene.set_cube_env(poses)                
             target_pose = rospy.wait_for_message('/cube_%d_odom' % self.cube_number,Odometry).pose.pose
         # go to next state
         self.transition_data = target_pose
@@ -222,15 +234,18 @@ class StateMachine:
 
     
     ### 3. PICK CUBE ###
-    def pick_cube(self,pose,approach):
-        approach = 0   
+    def pick_cube(self,pose):   
         rospy.wait_for_service('/motion_planner/PickCube')
-        res = self.pick_cube_client(pose,approach)
+        res = self.pick_cube_client(pose,self.approach)
         # TODO: check if cube is gripped inside motion planner node
         #       and if not res.success shold be False
 
         if not res.success:
-            self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
+            self.approach += 1
+            if self.approach >= 6:
+                self.react_to_failure(res.message, State.END, Status.ERROR)
+            else:
+                self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         self.state = State.PLACE_CUBE

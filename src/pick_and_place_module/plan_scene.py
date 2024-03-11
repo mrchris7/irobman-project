@@ -45,7 +45,13 @@ class PlanScene:
         boxD.pose.position.y = 0
         boxD.pose.position.z = z
         self.scene.add_box("env4", boxD, size=(0.01, lenght, 1))
-    
+    def set_cube_env(self,poses):
+        for pose_index in range(len(poses)):
+            box_pose = geometry_msgs.msg.PoseStamped()
+            box_pose.header.frame_id = "world"
+            box_pose.pose = poses[pose_index]
+            self.scene.add_box("cube_"+str(pose_index), box_pose, size=(0.045, 0.045, 0.045))
+
     def set_cubes(self):
         for index in range(30):
             #print("cube_"+str(index)+"_x")

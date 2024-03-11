@@ -88,6 +88,26 @@ class MoveGroupControl:
 
         current_pose = self.move_group.get_current_pose().pose
         return all_close(pose_goal, current_pose, 0.01)
+    
+    def go_to_pose_goal_cartesian(self, x=0, y=0, z=0, qx=0,qy=0,qz=0,qw=0):
+        move_group = self.move_group
+        
+        pose_goal = geometry_msgs.msg.Pose()
+        pose_goal.orientation.w = qw
+        pose_goal.orientation.x = qx
+        pose_goal.orientation.y = qy
+        pose_goal.orientation.z = qz
+        pose_goal.position.x = x
+        pose_goal.position.y = y
+        pose_goal.position.z = z
+        (plan, _) = move_group.compute_cartesian_path(
+                                   [pose_goal],    # waypoints to follow
+                                   0.01,                # eef_step
+                                   0.0,             # jump_threshold
+                                   False)           # Avoid collision
+        move_group.execute(plan, wait=True)
+        current_pose = self.move_group.get_current_pose().pose
+        return all_close(pose_goal, current_pose, 0.01)
 
     def follow_cartesian_path(self, waypoints):
         move_group = self.move_group
