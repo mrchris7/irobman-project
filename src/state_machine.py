@@ -42,7 +42,7 @@ class StateMachine:
         self.place_cube_client = rospy.ServiceProxy('/motion_planner/PlaceCube', PlaceCube)
         
         # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
-        self.eef_pose_sub = rospy.Subscriber('eff_pose', Pose, self.handle_eff_pose)
+        self.eef_pose_sub = rospy.Subscriber('/joint_states', JointState, self.handle_eff_pose)
         
         # cube detection
         self.detection_client = rospy.ServiceProxy('CubeDetection', GetPoints)
@@ -54,7 +54,7 @@ class StateMachine:
 
         # setup
         self.init_joints = rospy.get_param('init_joints').values()
-        self.pose_eef = Pose()
+        self.pose_eef = np.array([])
         self.tower_height = 0
         self.max_tower_height = 0.2
         self.state = State.START
@@ -73,7 +73,7 @@ class StateMachine:
         self.testflag = True
 
     def reset(self):
-        self.pose_eef = Pose()
+        self.pose_eef = np.array([])
         self.tower_height = 0
         self.state = State.START
         self.status = Status.READY
@@ -132,13 +132,20 @@ class StateMachine:
             self.status = Status.FINISHED
 
     
-    def handle_eff_pose(self, pose: Pose):
-        self.pose_eff = pose
+    def handle_eff_pose(self, state: JointState):
+        # Find the index of the "panda_hand" joint
+        try:
+            panda_hand_index = state.name.index("panda_hand")
+            panda_hand_position = state.position[panda_hand_index]
+        except ValueError:
+            rospy.logwarn("Joint 'panda_hand' not found in the joint states message.")
+
+        self.pose_eef = np.array(panda_hand_position[0:3])
 
 
     def choose_target_pose(self, poses: List[Pose]):
         # TODO: choose a target cube out of all detected cube poses
-        #       i.e. return the pose of the cube that is nearest to the end-effector (self.pose_eff)
+        #       i.e. return the pose of the cube that is nearest to the end-effector (self.pose_eef)
         rospy.logwarn(f"all poses: {poses}")
         best_pose = poses[0]  # store chosen pose
         psts_obj = np.zeros((len(poses), 3))
@@ -148,9 +155,11 @@ class StateMachine:
             psts_obj[i] = pst_obj
 
         # method 1: neaest to end effector
-        pst_eff = ros_numpy.numpify(self.pose_eef)[0:4, 3]
+        
+        # pst_eff = ros_numpy.numpify(self.pose_eef)[0:4, 3]
+        pst_eef = self.pose_eef
         # compute mininum distance and corresponding index
-        dist = np.linalg.norm(psts_obj - pst_eff, axis=1)
+        dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
         ind_min = np.argmin(dist)
         best_pose = poses[ind_min]
         rospy.logwarn(f"choose pose with min distance: {best_pose}")
