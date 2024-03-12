@@ -24,8 +24,8 @@ class CubeDetectionNode:
         self.canny_aperturesize = 3
         self.canny_L2gradient = True
         self.dil_ksize = 1
-        self.area_min = 909
-        self.area_max = 8578
+        self.area_min = 364
+        self.area_max = 2832
         self.cnt_thickness = 1
         self.poly_eps = 0.054
 
@@ -54,7 +54,6 @@ class CubeDetectionNode:
 
         cv2.imshow("image", img)    
         cv2.imshow("image depth", depth_image_normalized)
-        cv2.waitKey(0)
 
         scaling = 1
         img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
@@ -127,9 +126,7 @@ class CubeDetectionNode:
                     shapes_img = cv2.drawContours(shapes_img, [cnt], -1, (0, 255, 0), 1)
                     shapes_img = cv2.drawContours(shapes_img, [approx], -1, (0, 255, 0), 2)
                     center_x, center_y = center_of_points(approx)
-                    
-                    print("center_x:", center_x, "center_y:", center_y, "center_depth:", self.center_depth)
-                    
+                                        
                     center_depth = img_depth[round(center_y), round(center_x)] #img_depth.get_value(round(center_x), round(center_y))[1] #
                     print("center_x:", center_x, "center_y:", center_y, "center_depth:", center_depth)
                     center_points.append([center_x, center_y, center_depth])
@@ -139,11 +136,12 @@ class CubeDetectionNode:
                     cube_count += 1
 
         # show always contours img
-        cv2.imshow("contours", contour_img)
+        #cv2.imshow("contours", contour_img)
 
         # show always result img
         cv2.putText(shapes_img, f'cubes detected: {cube_count}', (10, shapes_img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.imshow("result", shapes_img)
+        cv2.waitKey(0)
         
         return center_points
 

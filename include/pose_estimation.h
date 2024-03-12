@@ -23,7 +23,7 @@
 #include <icg/renderer_geometry.h>
 #include <icg/static_detector.h>
 #include <icg/tracker.h>
-#include <icg/zed_camera.h>
+#include <icg/zed_camera_ros.h>
 //#include <icg/test_camera.h>
 #include <icg/ros_publisher.h>
 #include <Eigen/Geometry>

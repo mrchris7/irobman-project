@@ -3,7 +3,7 @@
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from irobman_project.srv import CaptureImage, CaptureImageResponse
+from pose_estimation.srv import CaptureImage, CaptureImageResponse
 
 
 class CaptureImageNode:

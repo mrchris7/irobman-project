@@ -5,7 +5,7 @@ import ros_numpy
 import tf
 import numpy as np
 from enum import Enum
-from geometry_msgs.msg import Pose, PointStamped
+from geometry_msgs.msg import Pose, PoseStamped
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
@@ -134,14 +134,16 @@ class StateMachine:
 
     
     def handle_eff_pose(self, state: JointState):
-        # Find the index of the "panda_hand" joint
-        try:
-            panda_hand_index = state.name.index("panda_hand")
-            panda_hand_position = state.position[panda_hand_index]
-        except ValueError:
-            rospy.logwarn("Joint 'panda_hand' not found in the joint states message.")
-
-        self.pose_eef = np.array(panda_hand_position[0:3])
+        pass # TODO remove subscriber too
+        ## Find the index of the "panda_hand" joint
+        #try:
+        #
+        #    panda_hand_index = state.name.index("panda_hand")
+        #    panda_hand_position = state.position[panda_hand_index]
+        #except ValueError:
+        #    rospy.logwarn("Joint 'panda_hand' not found in the joint states message.")
+        #
+        #self.pose_eef = np.array(panda_hand_position[0:3])
 
 
     def choose_target_pose(self, poses: List[Pose]):
@@ -152,13 +154,14 @@ class StateMachine:
         psts_obj = np.zeros((len(poses), 3))
         for i, pose in enumerate(poses):
             # convert MessageType data to NumPy array 
-            pst_obj = ros_numpy.numpify(pose)[0:4, 3] # only center of object
+            pst_obj = ros_numpy.numpify(pose)[0:3, 3] # only center of object
             psts_obj[i] = pst_obj
 
         # method 1: neaest to end effector
         
         # pst_eff = ros_numpy.numpify(self.pose_eef)[0:4, 3]
-        pst_eef = self.pose_eef
+        pst_eef = self.get_transformation("panda_hand", "world")
+        #pst_eef = self.pose_eef
         # compute mininum distance and corresponding index
         dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
         ind_min = np.argmin(dist)
@@ -180,10 +183,31 @@ class StateMachine:
 
         return best_pose
     
+    def get_transformation(self, frame_from, frame_to):
+        listener = tf.TransformListener()  # TODO: move to constructor
+        rate = rospy.Rate(10.0)
+        counter = 0
+        trans = None
+
+        while not rospy.is_shutdown() and counter <= 5:
+            try:
+                (trans, rot) = listener.lookupTransform(frame_from, frame_to, rospy.Time(0))
+                rospy.loginfo("Translation: %s", trans)
+                rospy.loginfo("Rotation: %s", rot)
+
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                print("repeat:", e)
+            counter += 1
+                
+            rate.sleep()
+
+        return np.array(trans)
+
 
     def calculate_tower_pose(self):
         # TODO: Calculate the pose where the cube should be placed on the tower based on self.tower_height
-        tower_pose_dict = rospy.get_param('tower1')
+        if SIMULATION == 1:
+            tower_pose_dict = rospy.get_param('tower1')
         tower_pose = Pose()
         tower_pose.position.x = tower_pose_dict['x']
         tower_pose.position.y = tower_pose_dict['y']
@@ -206,7 +230,7 @@ class StateMachine:
         poses_world = []
         for pose_camera in poses_camera:
 
-            pose_camera_st = PointStamped()
+            pose_camera_st = PoseStamped()
             pose_camera_st.header.frame_id = frame_from
             pose_camera_st.pose = pose_camera
 
@@ -235,7 +259,7 @@ class StateMachine:
                 rate.sleep()
 
             pose_world = Pose()
-            pose_world.pose = pose_world_st.pose
+            pose_world = pose_world_st.pose
             poses_world.append(pose_world)
         
         return poses_world
@@ -292,7 +316,7 @@ class StateMachine:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
             
-            rospy.sleep(3)  # give tracker some time
+            rospy.sleep(10)  # give tracker some time
 
             rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
             res = self.retrieve_tracked_poses_client()
@@ -308,6 +332,10 @@ class StateMachine:
             transformed_poses = self.transform_poses(res.poses)
 
             target_pose = self.choose_target_pose(transformed_poses)
+            
+            # set z to align with table height
+            target_pose.position.z = self.cube_dimension/2
+
         else:
             poses = []
             for i in range(4):
