@@ -2,9 +2,10 @@
 
 import rospy
 import ros_numpy
+import tf
 import numpy as np
 from enum import Enum
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PointStamped
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
@@ -194,6 +195,50 @@ class StateMachine:
 
 
         return tower_pose
+    
+    def transform_poses(self, poses_camera: List[Pose]):
+        # define frames for transformation
+        frame_from = "zed2_left_camera_frame"
+        frame_to = "world"
+
+        listener = tf.TransformListener()  # TODO: move to constructor
+        
+        poses_world = []
+        for pose_camera in poses_camera:
+
+            pose_camera_st = PointStamped()
+            pose_camera_st.header.frame_id = frame_from
+            pose_camera_st.pose = pose_camera
+
+            rate = rospy.Rate(10.0)
+            counter = 0
+
+            while not rospy.is_shutdown() and counter <= 5:
+                try:
+                    # Transform the point
+                    pose_world_st = listener.transformPose(frame_to, pose_camera_st)
+
+                    rospy.loginfo("Pose transformed to " + frame_to + ": (%f, %f, %f)",
+                                    pose_world_st.pose.position.x,
+                                    pose_world_st.pose.position.y,
+                                    pose_world_st.pose.position.z)
+
+
+                    (trans, rot) = listener.lookupTransform(frame_from, frame_to, rospy.Time(0))
+                    rospy.loginfo("Translation: %s", trans)
+                    rospy.loginfo("Rotation: %s", rot)
+
+                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                    print("repeat:", e)
+                counter += 1
+                    
+                rate.sleep()
+
+            pose_world = Pose()
+            pose_world.pose = pose_world_st.pose
+            poses_world.append(pose_world)
+        
+        return poses_world
 
 
     ### 1. INITIAL POSE ###
@@ -259,7 +304,10 @@ class StateMachine:
             # TODO: evaluate if poses are good, maybe filter before choosing the target?
             #       e.g. ignore poses that have negative z, or too high z coordinates
 
-            target_pose = self.choose_target_pose(res.poses)
+            # retrieved poses are body2camera poses -> transform to body2world poses
+            transformed_poses = self.transform_poses(res.poses)
+
+            target_pose = self.choose_target_pose(transformed_poses)
         else:
             poses = []
             for i in range(4):
