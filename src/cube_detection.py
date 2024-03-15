@@ -52,8 +52,8 @@ class CubeDetectionNode:
         
         depth_image_normalized = cv2.normalize(img_depth, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
 
-        cv2.imshow("image", img)    
-        cv2.imshow("image depth", depth_image_normalized)
+        #cv2.imshow("image", img)    
+        #cv2.imshow("image depth", depth_image_normalized)
 
         scaling = 1
         img = cv2.resize(img, (0,0), fx=scaling, fy=scaling)
@@ -140,8 +140,9 @@ class CubeDetectionNode:
 
         # show always result img
         cv2.putText(shapes_img, f'cubes detected: {cube_count}', (10, shapes_img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.imshow("result", shapes_img)
-        cv2.waitKey(0)
+        #cv2.imshow("result", shapes_img)
+        #cv2.waitKey(0)
+        ##cv2.destroyAllWindows()
         
         return center_points
 
@@ -151,16 +152,16 @@ class CubeDetectionNode:
         points_3d = []
         for point_2d in points_2d:
 
-            cube_y, cube_x, cube_depth = point_2d
+            cube_x, cube_y, cube_depth = point_2d
             
             print("X-Co-ordinate in Camera Frame: %f", cube_x)
             print("Y-Co-ordinate in Camera Frame: %f", cube_y)
             print("D-Co-ordinate in Camera Frame: %f", cube_depth)
 
-            f_x = 526.945
-            f_y = 526.945	
-            pp_x = 648.178
-            pp_y = 358.773
+            f_x = 264.559 #526.945
+            f_y = 264.559 #526.945	
+            pp_x = 317.703 #648.178
+            pp_y = 181.865 #358.773
 
             # point from zed2_left_camera_frame
             z_3d = cube_depth

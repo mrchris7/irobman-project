@@ -3,16 +3,18 @@
 import rospy
 import ros_numpy
 import tf
+import tf.transformations as tf_trans
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import numpy as np
 from enum import Enum
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, PointStamped, Point
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
 from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning, SetPoints, GetPoints, GetPoses, PickCube, PlaceCube
 from pick_and_place_module.plan_scene import PlanScene
 from typing import List
-SIMULATION = 1
+SIMULATION = 0
 
 class State(Enum):
     START = 0
@@ -57,12 +59,12 @@ class StateMachine:
         self.init_joints = rospy.get_param('init_joints').values()
         self.pose_eef = np.array([])
         self.tower_height = 0
-        self.max_tower_height = 0.2
+        self.max_tower_height = 0.8
         self.state = State.START
         self.status = Status.READY
         self.transition_data = None  # used to transfer data between states
         self.cube_number = 0
-        self.cube_dimension = 0.05
+        self.cube_dimension = 0.045
         self.approach = 0
 
         # Planning Scene
@@ -70,8 +72,6 @@ class StateMachine:
         self.planning_scene.set_table()
         # self.planning_scene.set_env_constrains()
 
-        # debug
-        self.testflag = True
 
     def reset(self):
         self.pose_eef = np.array([])
@@ -207,6 +207,8 @@ class StateMachine:
     def calculate_tower_pose(self):
         # TODO: Calculate the pose where the cube should be placed on the tower based on self.tower_height
         if SIMULATION == 1:
+            tower_pose_dict = rospy.get_param('tower1_sim')
+        else:
             tower_pose_dict = rospy.get_param('tower1')
         tower_pose = Pose()
         tower_pose.position.x = tower_pose_dict['x']
@@ -232,8 +234,22 @@ class StateMachine:
 
             pose_camera_st = PoseStamped()
             pose_camera_st.header.frame_id = frame_from
-            pose_camera_st.pose = pose_camera
-
+            pose_camera_st.header.stamp = rospy.Time(0)
+            
+            pos_old = ros_numpy.numpify(pose_camera)
+            theta = -0.5*np.pi
+            Tx =  np.array([[1,0,0,0],
+                        [0,np.cos(theta), -np.sin(theta),0],
+                        [0,np.sin(theta),np.cos(theta),0],
+                        [0,0,0,1]])
+            Tzx = np.array([[np.cos(theta), -np.sin(theta),0,0],
+                        [np.sin(theta),np.cos(theta),0,0],
+                        [0,0,1,0],
+                        [0,0,0,1]]) @ Tx  
+            pos_new = Tzx @ pos_old
+            pose_camera_st.pose = ros_numpy.msgify(Pose, pos_new)
+            
+            
             rate = rospy.Rate(10.0)
             counter = 0
 
@@ -246,11 +262,6 @@ class StateMachine:
                                     pose_world_st.pose.position.x,
                                     pose_world_st.pose.position.y,
                                     pose_world_st.pose.position.z)
-
-
-                    (trans, rot) = listener.lookupTransform(frame_from, frame_to, rospy.Time(0))
-                    rospy.loginfo("Translation: %s", trans)
-                    rospy.loginfo("Rotation: %s", rot)
 
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
                     print("repeat:", e)
@@ -275,6 +286,14 @@ class StateMachine:
 
         res = self.joint_planning_client(js)
         
+        if not res.success:
+            self.react_to_failure(res.message, self.state, Status.ERROR)
+            return
+
+        rospy.wait_for_service('motion_planner/GripperControl')
+
+        res = self.close_gripper_client(False)
+
         if not res.success:
             self.react_to_failure(res.message, self.state, Status.ERROR)
             return
@@ -315,24 +334,30 @@ class StateMachine:
             if not res.success:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
-            
-            rospy.sleep(10)  # give tracker some time
+
+            rospy.sleep(4)  # give tracker some time
 
             rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
             res = self.retrieve_tracked_poses_client()
-            
+ 
             if not res.success:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
 
+            # retrieved poses are body2camera poses -> transform to body2world poses
+            print(">>>>> poses before transformation", res.poses)
+            transformed_poses = self.transform_poses(res.poses)
+            print(">>>>> poses after transformation", transformed_poses)
+            
+            
+            target_pose = transformed_poses[0] #self.choose_target_pose(transformed_poses)
+
             # TODO: evaluate if poses are good, maybe filter before choosing the target?
             #       e.g. ignore poses that have negative z, or too high z coordinates
 
-            # retrieved poses are body2camera poses -> transform to body2world poses
-            transformed_poses = self.transform_poses(res.poses)
+            # Planning Scene
+            self.planning_scene.set_cube_env(transformed_poses) 
 
-            target_pose = self.choose_target_pose(transformed_poses)
-            
             # set z to align with table height
             target_pose.position.z = self.cube_dimension/2
 

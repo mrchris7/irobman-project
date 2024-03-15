@@ -50,6 +50,7 @@ class PlanScene:
             box_pose = geometry_msgs.msg.PoseStamped()
             box_pose.header.frame_id = "world"
             box_pose.pose = poses[pose_index]
+            box_pose.pose.position.z = 0.045 / 2
             self.scene.add_box("cube_"+str(pose_index), box_pose, size=(0.045, 0.045, 0.045))
 
     def set_cubes(self):

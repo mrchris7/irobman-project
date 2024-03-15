@@ -12,7 +12,7 @@ PoseEstimationNode::PoseEstimationNode() {
     directory_ = "/opt/ros_ws/src/irobman-project/objs/cube";
 
     constexpr bool kUseDepthViewer = false;
-    constexpr bool kUseColorViewer = false;
+    constexpr bool kUseColorViewer = true;
     kMeasureOcclusions_ = true;
     kModelOcclusions_ = false;
     kVisualizePoseResult_ = false;
@@ -60,7 +60,6 @@ bool PoseEstimationNode::handleToggleTracker(std_srvs::SetBool::Request& req,
     if (req.data == true) {
         // optional start //
         tracker_ptr_->ExecuteDetection();
-        std::this_thread::sleep_for(std::chrono::seconds(5));
         // optional end //
         tracker_ptr_->StartTracking();
     }
@@ -98,18 +97,12 @@ bool PoseEstimationNode::handlePrepareTracker(irobman_project::SetPoints::Reques
         std::filesystem::path geometry_path{directory_ / "cube.obj"};
         Transform3fA geometry2body_pose;
         geometry2body_pose.matrix() << 1., 0, 0, 0,
-                                    0, 1., 0, 0,
-                                    0, 0, 1., -0.006,
-                                    0, 0, 0, 1.;
+                                       0, 1., 0, 0,
+                                       0, 0, 1., -0.006,
+                                       0, 0, 0, 1.;
         auto body_ptr{std::make_shared<icg::Body>(
             body_name, geometry_path, 1.0f, true, true, geometry2body_pose)};
         
-        Transform3fA transform;
-        transform.matrix() << 1., 0, 0, point.x,
-                              0, 1., 0, point.y,
-                              0, 0, 1., point.z,
-                              0, 0, 0, 1.;     
-        body_ptr->set_body2world_pose(transform);
         renderer_geometry_ptr_->AddBody(body_ptr);
         color_depth_renderer_ptr_->AddReferencedBody(body_ptr);
         depth_depth_renderer_ptr_->AddReferencedBody(body_ptr);
@@ -117,10 +110,10 @@ bool PoseEstimationNode::handlePrepareTracker(irobman_project::SetPoints::Reques
 
         // Set up detector
         Transform3fA body2world_pose;
-        body2world_pose.matrix() << 0.607674, 0.786584, -0.10962, -0.081876,
-                                    0.408914, -0.428214, -0.805868, -0.00546736,
-                                    -0.680823, 0.444881, -0.58186, 0.618302,
-                                    0, 0, 0, 1;
+        body2world_pose.matrix() << 1., 0, 0, point.x,
+                                    0, 1., 0, point.y,
+                                    0, 0, 1., point.z,
+                                    0, 0, 0, 1.;                               
         auto detector_ptr{std::make_shared<icg::StaticDetector>(
             body_name + "_detector", body_ptr, body2world_pose)};
         tracker_ptr_->AddDetector(detector_ptr);

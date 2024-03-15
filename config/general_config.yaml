@@ -1,8 +1,8 @@
 init_joints:
-  joint_1: 0.759644
-  joint_2: 0.0178955
-  joint_3: -0.814945
-  joint_4: -1.79299
-  joint_5: -0.0223154
-  joint_6: 1.358
-  joint_7: 0.752333
+  joint_1: 0.7726
+  joint_2: -0.00448182
+  joint_3: -0.84231
+  joint_4: -1.77722
+  joint_5: -0.0103137
+  joint_6: 1.62066
+  joint_7: 0.703299
