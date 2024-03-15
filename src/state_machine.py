@@ -229,16 +229,16 @@ class StateMachine:
         tower_pose.orientation.z = tower_pose_dict['qz']
         tower_pose.orientation.w = tower_pose_dict['qw']
 
-        if self.cube_number < 4:
+        if self.cube_number < 4:  # 1st level
             tower_pose.position.y = tower_pose_dict['y'] + self.cube_number*self.cube_dimension
             tower_pose.position.z = tower_pose_dict['z']
-        elif self.cube_number < 7:
+        elif self.cube_number < 7:  # 2nd level
             tower_pose.position.y = tower_pose_dict['y']+ (self.cube_number-4+0.5)*self.cube_dimension
             tower_pose.position.z = tower_pose_dict['z'] + self.cube_dimension
-        elif self.cube_number < 9:
+        elif self.cube_number < 9:  # 3rd level
             tower_pose.position.y = tower_pose_dict['y'] + (self.cube_number-7+1)*self.cube_dimension
             tower_pose.position.z = tower_pose_dict['z'] + 2*self.cube_dimension
-        elif self.cube_number == 9:
+        elif self.cube_number == 9:  # 4th level
             tower_pose.position.y = tower_pose_dict['y'] + 1.5*self.cube_dimension
             tower_pose.position.z = tower_pose_dict['z'] + 3*self.cube_dimension
 
@@ -293,7 +293,7 @@ class StateMachine:
 
             pose_world = Pose()
             pose_world = pose_world_st.pose
-            # adjust tiny unrobost on orientation
+            # adjust tiny unstablility on orientation
             orientation_list = [pose_world.orientation.x, pose_world.orientation.y, pose_world.orientation.z, pose_world.orientation.w]
             (x_rot, y_rot, z_rot) = euler_from_quaternion(orientation_list)
             if np.isclose(x_rot, 0, atol=1e-02):
