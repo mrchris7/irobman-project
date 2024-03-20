@@ -28,6 +28,7 @@ class CubeDetectionNode:
         self.area_max = 2832
         self.cnt_thickness = 1
         self.poly_eps = 0.054
+        self.result_img = np.zeros((256, 256, 1), dtype = "uint8")
 
 
     def handle_cube_detection(self, req):
@@ -140,9 +141,8 @@ class CubeDetectionNode:
 
         # show always result img
         cv2.putText(shapes_img, f'cubes detected: {cube_count}', (10, shapes_img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        #cv2.imshow("result", shapes_img)
-        #cv2.waitKey(0)
-        ##cv2.destroyAllWindows()
+        shapes_img = cv2.resize(shapes_img, (0,0), fx=1.5, fy=1.5)
+        self.result_img = shapes_img
         
         return center_points
 
@@ -193,7 +193,12 @@ def center_of_points(points):
 
 if __name__ == '__main__':
     cube_detection_node = CubeDetectionNode()
-    rospy.spin()
+    rate = rospy.Rate(5)
+    
+    while not rospy.is_shutdown():
+        cv2.imshow("cube detection", cube_detection_node.result_img)
+        cv2.waitKey(1000)
+        rate.sleep()
 
 
 
