@@ -3,11 +3,9 @@
 import rospy
 import ros_numpy
 import tf
-import tf.transformations as tf_trans
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import numpy as np
 from enum import Enum
-from geometry_msgs.msg import Pose, PoseStamped, PointStamped, Point
+from geometry_msgs.msg import Pose, PoseStamped
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
@@ -15,6 +13,8 @@ from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning, Se
 from pick_and_place_module.plan_scene import PlanScene
 from pick_and_place_module.eef_control import MoveGroupControl
 from typing import List
+from tower_builder import TowerBuilder
+
 SIMULATION = 0
 
 class State(Enum):
@@ -57,15 +57,19 @@ class StateMachine:
         self.prepare_tracker_client = rospy.ServiceProxy('pose_estimation/PrepareTracker', SetPoints)
         self.retrieve_tracked_poses_client = rospy.ServiceProxy('pose_estimation/RetrieveTrackedPoses', GetPoses)
 
+        # tower builder
+        if SIMULATION == 1:
+            tower_template = rospy.get_param('tower1_sim_')
+        else:
+            tower_template = rospy.get_param('tower1_')
+        self.tower_builder = TowerBuilder(tower_template, self.cube_dimension)
+
         # setup
         self.init_joints = rospy.get_param('init_joints').values()
         self.pose_eef = np.array([])
-        self.tower_height = 0
-        self.max_tower_height = 0.8
         self.state = State.START
         self.status = Status.READY
         self.transition_data = None  # used to transfer data between states
-        self.cube_number = 0
         self.cube_dimension = 0.045
         self.approach = 0
 
@@ -77,12 +81,11 @@ class StateMachine:
 
     def reset(self):
         self.pose_eef = np.array([])
-        self.tower_height = 0
         self.state = State.START
         self.status = Status.READY
         self.transition_data = None
-        self.cube_number = 0
         self.approach = 0
+        self.tower_builder.reset()
         
 
 
@@ -206,25 +209,6 @@ class StateMachine:
 
         return np.array(trans)
 
-
-    def calculate_tower_pose(self):
-        # TODO: Calculate the pose where the cube should be placed on the tower based on self.tower_height
-        if SIMULATION == 1:
-            tower_pose_dict = rospy.get_param('tower1_sim')
-        else:
-            tower_pose_dict = rospy.get_param('tower1')
-        # tower 1
-        tower_pose = Pose()
-        tower_pose.position.x = tower_pose_dict['x']
-        tower_pose.position.y = tower_pose_dict['y']
-        tower_pose.position.z = tower_pose_dict['z'] + self.cube_number*self.cube_dimension
-        tower_pose.orientation.x = tower_pose_dict['qx']
-        tower_pose.orientation.y = tower_pose_dict['qy']
-        tower_pose.orientation.z = tower_pose_dict['qz']
-        tower_pose.orientation.w = tower_pose_dict['qw']
-
-
-        return tower_pose
     
     def transform_poses(self, poses_camera: List[Pose]):
         # define frames for transformation
@@ -313,7 +297,7 @@ class StateMachine:
             self.react_to_failure(res.message, self.state, Status.ERROR)
             return
 
-        if self.tower_height >= self.max_tower_height:
+        if self.tower_builder.is_tower_finished():
             self.state = State.END
         else:
             self.state = State.LOCALISE_TARGET_CUBE        
@@ -382,7 +366,7 @@ class StateMachine:
             for i in range(4):
                 poses.append(rospy.wait_for_message('/cube_%d_odom' % i,Odometry).pose.pose)
             self.planning_scene.set_cube_env(poses)                
-            target_pose = rospy.wait_for_message('/cube_%d_odom' % self.cube_number,Odometry).pose.pose
+            target_pose = rospy.wait_for_message('/cube_%d_odom' % self.tower_builder.placed_blocks,Odometry).pose.pose
         # go to next state
         self.transition_data = target_pose
         self.state = State.PICK_CUBE
@@ -422,8 +406,7 @@ class StateMachine:
             return
 
         # TODO: check if placement of cube was correct
-        self.cube_number += 1
-        self.tower_height = self.cube_number*self.cube_dimension 
+        self.tower_builder.update_tower_state()
 
         self.state = State.MOVE_TO_INITIAL_POSE
     
