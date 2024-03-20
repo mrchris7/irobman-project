@@ -19,7 +19,7 @@ class TowerBuilder:
         pose = Pose()
         pose.position.x = self.template['position']['x'] + block['x']
         pose.position.y = self.template['position']['y'] + block['y']
-        pose.position.z = self.template['position']['z'] + stacks * self.block_height
+        pose.position.z = self.template['position']['z'] + (stacks-1) * self.block_height
         pose.orientation.x = block['qx']
         pose.orientation.y = block['qy']
         pose.orientation.z = block['qz']

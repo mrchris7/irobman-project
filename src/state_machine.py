@@ -3,6 +3,7 @@
 import rospy
 import ros_numpy
 import tf
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import numpy as np
 from enum import Enum
 from geometry_msgs.msg import Pose, PoseStamped
@@ -57,13 +58,6 @@ class StateMachine:
         self.prepare_tracker_client = rospy.ServiceProxy('pose_estimation/PrepareTracker', SetPoints)
         self.retrieve_tracked_poses_client = rospy.ServiceProxy('pose_estimation/RetrieveTrackedPoses', GetPoses)
 
-        # tower builder
-        if SIMULATION == 1:
-            tower_template = rospy.get_param('tower1_sim_')
-        else:
-            tower_template = rospy.get_param('tower1_')
-        self.tower_builder = TowerBuilder(tower_template, self.cube_dimension)
-
         # setup
         self.init_joints = rospy.get_param('init_joints').values()
         self.pose_eef = np.array([])
@@ -72,6 +66,13 @@ class StateMachine:
         self.transition_data = None  # used to transfer data between states
         self.cube_dimension = 0.045
         self.approach = 0
+
+        # tower builder
+        if SIMULATION == 1:
+            tower_template = rospy.get_param('tower_sim')
+        else:
+            tower_template = rospy.get_param('tower')
+        self.tower_builder = TowerBuilder(tower_template, self.cube_dimension)
 
         # Planning Scene
         self.planning_scene = PlanScene()
@@ -131,7 +132,7 @@ class StateMachine:
             self.pick_cube(data)
 
         elif state == State.PLACE_CUBE:
-            tower_pose = self.calculate_tower_pose()
+            tower_pose = self.tower_builder.get_next_pose()
             self.place_cube(tower_pose)
 
         elif state == State.END:
@@ -152,8 +153,8 @@ class StateMachine:
 
 
     def choose_target_pose(self, poses: List[Pose]):
-        # TODO: choose a target cube out of all detected cube poses
-        #       i.e. return the pose of the cube that is nearest to the end-effector (self.pose_eef)
+        # choose a target cube out of all detected cube poses
+        # return the pose of the cube that is nearest to the end-effector
         rospy.logwarn(f"all poses: {poses}")
         best_pose = poses[0]  # store chosen pose
         psts_obj = np.zeros((len(poses), 3))
@@ -191,21 +192,11 @@ class StateMachine:
     
     def get_transformation(self, frame_from, frame_to):
         listener = tf.TransformListener()  # TODO: move to constructor
-        rate = rospy.Rate(10.0)
-        counter = 0
-        trans = None
 
-        while not rospy.is_shutdown() and counter <= 5:
-            try:
-                (trans, rot) = listener.lookupTransform(frame_from, frame_to, rospy.Time(0))
-                rospy.loginfo("Translation: %s", trans)
-                rospy.loginfo("Rotation: %s", rot)
-
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-                print("repeat:", e)
-            counter += 1
-                
-            rate.sleep()
+        listener.waitForTransform(frame_from, frame_to, rospy.Time(), rospy.Duration(4.0))
+        (trans, rot) = listener.lookupTransform(frame_from, frame_to, rospy.Time(0))
+        #rospy.loginfo("Translation: %s", trans)
+        #rospy.loginfo("Rotation: %s", rot)
 
         return np.array(trans)
 
@@ -216,6 +207,8 @@ class StateMachine:
         frame_to = "world"
 
         listener = tf.TransformListener()  # TODO: move to constructor
+
+        listener.waitForTransform(frame_from, frame_to, rospy.Time(), rospy.Duration(4.0))
         
         poses_world = []
         for pose_camera in poses_camera:
@@ -237,25 +230,13 @@ class StateMachine:
             pos_new = Tzx @ pos_old
             pose_camera_st.pose = ros_numpy.msgify(Pose, pos_new)
             
-            
-            rate = rospy.Rate(10.0)
-            counter = 0
 
-            while not rospy.is_shutdown() and counter <= 5:
-                try:
-                    # Transform the point
-                    pose_world_st = listener.transformPose(frame_to, pose_camera_st)
+            pose_world_st = listener.transformPose(frame_to, pose_camera_st)
 
-                    rospy.loginfo("Pose transformed to " + frame_to + ": (%f, %f, %f)",
-                                    pose_world_st.pose.position.x,
-                                    pose_world_st.pose.position.y,
-                                    pose_world_st.pose.position.z)
-
-                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-                    print("repeat:", e)
-                counter += 1
-                    
-                rate.sleep()
+            rospy.loginfo("Pose transformed to " + frame_to + ": (%f, %f, %f)",
+                            pose_world_st.pose.position.x,
+                            pose_world_st.pose.position.y,
+                            pose_world_st.pose.position.z)
 
             pose_world = Pose()
             pose_world = pose_world_st.pose
@@ -334,7 +315,7 @@ class StateMachine:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
 
-            rospy.sleep(4)  # give tracker some time
+            rospy.sleep(1)  # give tracker some time
 
             rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
             res = self.retrieve_tracked_poses_client()
@@ -359,7 +340,7 @@ class StateMachine:
             self.planning_scene.set_cube_env(transformed_poses) 
 
             # set z to align with table height
-            target_pose.position.z = self.cube_dimension/2
+            target_pose.position.z = self.cube_dimension/2 + 0.005
 
         else:
             poses = []
@@ -398,6 +379,8 @@ class StateMachine:
     ### 4. PLACE CUBE ###
     def place_cube(self,pose):
         
+        pose.position.z += 0.005 
+
         rospy.wait_for_service('/motion_planner/PlaceCube')
         res = self.place_cube_client(pose)
 
@@ -407,6 +390,7 @@ class StateMachine:
 
         # TODO: check if placement of cube was correct
         self.tower_builder.update_tower_state()
+        self.approach = 0
 
         self.state = State.MOVE_TO_INITIAL_POSE
     

@@ -12,7 +12,7 @@
 
   <!-- Load configuations into parameter server -->
   <rosparam file="$(find irobman_project)/config/general_config.yaml" command="load" />
-  <rosparam file="$(find irobman_project)/config/tower1.yaml" command="load" />
+  <rosparam file="$(find irobman_project)/config/tower2.yaml" command="load" />
   
   <!-- Launch nodes -->
   <node name="motion_planner" pkg="irobman_project" type="motion_planner.py" output="screen" />
