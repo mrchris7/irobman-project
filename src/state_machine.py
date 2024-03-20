@@ -160,8 +160,10 @@ class StateMachine:
             psts_obj[i] = pst_obj
 
         # method 1: neaest to end effector
-        
-        pst_eef = ros_numpy.numpify(self.eef_pose)[0:4, 3]
+        self.eef_pose = self.move_group.get_current_pose().pose
+        pst_eef = ros_numpy.numpify(self.eef_pose)[0:3, 3]
+        print(f"{self.eef_pose = }")
+        print(pst_eef.shape)
         # pst_eef = self.get_transformation("panda_hand", "world")
         # compute mininum distance and corresponding index
         dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
@@ -212,35 +214,15 @@ class StateMachine:
         else:
             tower_pose_dict = rospy.get_param('tower1')
         # tower 1
-        # tower_pose = Pose()
-        # tower_pose.position.x = tower_pose_dict['x']
-        # tower_pose.position.y = tower_pose_dict['y']
-        # tower_pose.position.z = tower_pose_dict['z'] + self.cube_number*self.cube_dimension
-        # tower_pose.orientation.x = tower_pose_dict['qx']
-        # tower_pose.orientation.y = tower_pose_dict['qy']
-        # tower_pose.orientation.z = tower_pose_dict['qz']
-        # tower_pose.orientation.w = tower_pose_dict['qw']
-
-        # tower 2
         tower_pose = Pose()
         tower_pose.position.x = tower_pose_dict['x']
+        tower_pose.position.y = tower_pose_dict['y']
+        tower_pose.position.z = tower_pose_dict['z'] + self.cube_number*self.cube_dimension
         tower_pose.orientation.x = tower_pose_dict['qx']
         tower_pose.orientation.y = tower_pose_dict['qy']
         tower_pose.orientation.z = tower_pose_dict['qz']
         tower_pose.orientation.w = tower_pose_dict['qw']
 
-        if self.cube_number < 4:  # 1st level
-            tower_pose.position.y = tower_pose_dict['y'] + self.cube_number*self.cube_dimension
-            tower_pose.position.z = tower_pose_dict['z']
-        elif self.cube_number < 7:  # 2nd level
-            tower_pose.position.y = tower_pose_dict['y']+ (self.cube_number-4+0.5)*self.cube_dimension
-            tower_pose.position.z = tower_pose_dict['z'] + self.cube_dimension
-        elif self.cube_number < 9:  # 3rd level
-            tower_pose.position.y = tower_pose_dict['y'] + (self.cube_number-7+1)*self.cube_dimension
-            tower_pose.position.z = tower_pose_dict['z'] + 2*self.cube_dimension
-        elif self.cube_number == 9:  # 4th level
-            tower_pose.position.y = tower_pose_dict['y'] + 1.5*self.cube_dimension
-            tower_pose.position.z = tower_pose_dict['z'] + 3*self.cube_dimension
 
         return tower_pose
     
@@ -296,12 +278,13 @@ class StateMachine:
             # adjust tiny unstablility on orientation
             orientation_list = [pose_world.orientation.x, pose_world.orientation.y, pose_world.orientation.z, pose_world.orientation.w]
             (x_rot, y_rot, z_rot) = euler_from_quaternion(orientation_list)
-            if np.isclose(x_rot, 0, atol=1e-02):
-                x_rot = 0
-            if np.isclose(y_rot, 0, atol=1e-02):
-                y_rot = 0
-            if np.isclose(z_rot, 0, atol=1e-02):
-                z_rot = 0
+            #if np.isclose(x_rot, 0, atol=1e-02):
+            x_rot = 0
+
+            #if np.isclose(y_rot, 0, atol=1e-02):
+            y_rot = 0
+            #if np.isclose(z_rot, 0, atol=1e-02):
+            #    z_rot = 0
             (pose_world.orientation.x, pose_world.orientation.y, pose_world.orientation.z, pose_world.orientation.w) = quaternion_from_euler(x_rot, y_rot, z_rot)
             poses_world.append(pose_world)
         
@@ -350,7 +333,7 @@ class StateMachine:
             
             if len(res.points) == 0:
                 # TODO: move to a another alternative initial pose (perhaps cubes can be detected there)
-                self.react_to_failure("No cubes detected. The tower cannot be build.", self.state, Status.Error)
+                self.react_to_failure("No cubes detected. The tower cannot be build.", self.state, Status.ERROR)
                 return
 
             rospy.wait_for_service('pose_estimation/PrepareTracker')

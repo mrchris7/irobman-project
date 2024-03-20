@@ -137,7 +137,7 @@ class MotionPlannerNode:
                         des_x = req.pose.position.x
                         des_y = req.pose.position.y
                         pick_orientation_quaternion = quaternion_from_euler(des_roll,des_pitch,des_yaw,'sxyz')
-                        success_post_approach = self.moveit_control.go_to_pose_goal_quaternion(des_x, des_y, des_z, pick_orientation_quaternion[0], pick_orientation_quaternion[1], pick_orientation_quaternion[2], pick_orientation_quaternion[3])
+                        success_post_approach = self.moveit_control.go_to_pose_goal_cartesian(des_x, des_y, des_z, pick_orientation_quaternion[0], pick_orientation_quaternion[1], pick_orientation_quaternion[2], pick_orientation_quaternion[3])
                         if success_post_approach:
                             return True, "Cube picked successfully"
                         else: 
