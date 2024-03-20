@@ -176,17 +176,35 @@ class StateMachine:
         rospy.logwarn(f"choose pose with min distance: {best_pose}")
     
         # # method 2: least neighbours
-        # threshold = 0.1  # meter
+        # threshold = 0.15  # meter
         # num_nb = len(poses) - 1
         # # count number of neighbours
         # for j in range(len(poses)):
         #     dist = np.linalg.norm(psts_obj - psts_obj[j], axis=1)
-        #     diff = dist - threshold
-        #     crr_nb = np.squeeze(np.nonzero(diff)).shape[0]
+        #     diff = dist < threshold
+        #     crr_nb = np.count_nonzero(diff)
         #     if  crr_nb < num_nb:
         #         num_nb = crr_nb
         #         best_pose = poses[j]
         # rospy.logwarn(f"choose pose with min neighbours: {best_pose} with {num_nb} neighbour")
+
+        # # method 3: smallest distance to its closest neighbor
+        # max_min_distance = 0
+        # for i in range(len(poses)):
+        # 
+        #     # Compute Euclidean distance between the current pose and all other poses
+        #     dist = np.linalg.norm(psts_obj - psts_obj[i], axis=1)
+        # 
+        #     # Exclude distance to the current pose itself
+        #     dist[i] = float('inf')
+        # 
+        #     # Find the minimum distance for the current pose
+        #     current_min_distance = np.min(dist)
+        # 
+        #     # Update the best pose if the current pose has a larger minimum distance
+        #     if current_min_distance > max_min_distance:
+        #         max_min_distance = current_min_distance
+        #         best_pose = poses[i]
 
         return best_pose
     
@@ -256,6 +274,12 @@ class StateMachine:
         return poses_world
 
 
+    def filter_poses(self, poses: List[Pose]):
+        # filter after pose estimation
+        return [pose for pose in poses if pose.position.y > -0.4 and pose.position.y < 1.0 and
+                                          pose.position.x > 0.0 and pose.position.x < 1.0]
+
+
     ### 1. INITIAL POSE ###
     def move_to_initial_pose(self):
         
@@ -315,7 +339,7 @@ class StateMachine:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
 
-            rospy.sleep(1)  # give tracker some time
+            rospy.sleep(2)  # give tracker some time
 
             rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
             res = self.retrieve_tracked_poses_client()
@@ -325,15 +349,15 @@ class StateMachine:
                 return
 
             # retrieved poses are body2camera poses -> transform to body2world poses
-            print(">>>>> poses before transformation", res.poses)
+            #print(">>>>> poses before transformation", res.poses)
             transformed_poses = self.transform_poses(res.poses)
-            print(">>>>> poses after transformation", transformed_poses)
-            
-            
-            # target_pose = transformed_poses[0] #self.choose_target_pose(transformed_poses)
+            #print(">>>>> poses after transformation", transformed_poses)
 
-            # TODO: evaluate if poses are good, maybe filter before choosing the target?
-            #       e.g. ignore poses that have negative z, or too high z coordinates
+            # filter before choosing the target
+            transformed_poses = self.filter_poses(transformed_poses)
+            if len(transformed_poses) <= 0:
+                self.react_to_failure("No cubes are in range. The tower cannot be build.", self.state, Status.ERROR)
+                return
 
             target_pose = self.choose_target_pose(transformed_poses)
             # Planning Scene
