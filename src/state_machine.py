@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import SetBool
 from irobman_project.srv import CartesianMotionPlanning, JointMotionPlanning, SetPoints, GetPoints, GetPoses, PickCube, PlaceCube
 from pick_and_place_module.plan_scene import PlanScene
+from pick_and_place_module.eef_control import MoveGroupControl
 from typing import List
 from tower_builder import TowerBuilder
 
@@ -45,7 +46,8 @@ class StateMachine:
         self.place_cube_client = rospy.ServiceProxy('/motion_planner/PlaceCube', PlaceCube)
         
         # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
-        self.eef_pose_sub = rospy.Subscriber('/joint_states', JointState, self.handle_eff_pose)
+        self.move_group = MoveGroupControl().move_group
+        self.eef_pose = self.move_group.get_current_pose().pose
         
         # cube detection
         self.detection_client = rospy.ServiceProxy('CubeDetection', GetPoints)
@@ -161,10 +163,11 @@ class StateMachine:
             psts_obj[i] = pst_obj
 
         # method 1: neaest to end effector
-        
-        # pst_eff = ros_numpy.numpify(self.pose_eef)[0:4, 3]
-        pst_eef = self.get_transformation("panda_hand", "world")
-        #pst_eef = self.pose_eef
+        self.eef_pose = self.move_group.get_current_pose().pose
+        pst_eef = ros_numpy.numpify(self.eef_pose)[0:3, 3]
+        print(f"{self.eef_pose = }")
+        print(pst_eef.shape)
+        # pst_eef = self.get_transformation("panda_hand", "world")
         # compute mininum distance and corresponding index
         dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
         ind_min = np.argmin(dist)
@@ -172,7 +175,7 @@ class StateMachine:
         rospy.logwarn(f"choose pose with min distance: {best_pose}")
     
         # # method 2: least neighbours
-        # threshold = 0.5  # meter
+        # threshold = 0.1  # meter
         # num_nb = len(poses) - 1
         # # count number of neighbours
         # for j in range(len(poses)):
@@ -256,6 +259,17 @@ class StateMachine:
 
             pose_world = Pose()
             pose_world = pose_world_st.pose
+            # adjust tiny unstablility on orientation
+            orientation_list = [pose_world.orientation.x, pose_world.orientation.y, pose_world.orientation.z, pose_world.orientation.w]
+            (x_rot, y_rot, z_rot) = euler_from_quaternion(orientation_list)
+            #if np.isclose(x_rot, 0, atol=1e-02):
+            x_rot = 0
+
+            #if np.isclose(y_rot, 0, atol=1e-02):
+            y_rot = 0
+            #if np.isclose(z_rot, 0, atol=1e-02):
+            #    z_rot = 0
+            (pose_world.orientation.x, pose_world.orientation.y, pose_world.orientation.z, pose_world.orientation.w) = quaternion_from_euler(x_rot, y_rot, z_rot)
             poses_world.append(pose_world)
         
         return poses_world
@@ -303,7 +317,7 @@ class StateMachine:
             
             if len(res.points) == 0:
                 # TODO: move to a another alternative initial pose (perhaps cubes can be detected there)
-                self.react_to_failure("No cubes detected. The tower cannot be build.", self.state, Status.Error)
+                self.react_to_failure("No cubes detected. The tower cannot be build.", self.state, Status.ERROR)
                 return
 
             rospy.wait_for_service('pose_estimation/PrepareTracker')
@@ -335,11 +349,12 @@ class StateMachine:
             print(">>>>> poses after transformation", transformed_poses)
             
             
-            target_pose = transformed_poses[0] #self.choose_target_pose(transformed_poses)
+            # target_pose = transformed_poses[0] #self.choose_target_pose(transformed_poses)
 
             # TODO: evaluate if poses are good, maybe filter before choosing the target?
             #       e.g. ignore poses that have negative z, or too high z coordinates
 
+            target_pose = self.choose_target_pose(transformed_poses)
             # Planning Scene
             self.planning_scene.set_cube_env(transformed_poses) 
 
