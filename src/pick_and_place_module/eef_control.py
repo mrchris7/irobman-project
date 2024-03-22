@@ -22,6 +22,7 @@ class MoveGroupControl:
         self.scene = moveit_commander.PlanningSceneInterface()
         group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(group_name)
+        self.move_group.set_max_velocity_scaling_factor(0.8)
         self.planning_frame = self.move_group.get_planning_frame()
         self.eef_link = self.move_group.get_end_effector_link()
         self.group_names = self.robot.get_group_names()
