@@ -163,17 +163,17 @@ class StateMachine:
             pst_obj = ros_numpy.numpify(pose)[0:3, 3] # only center of object
             psts_obj[i] = pst_obj
 
-        # method 1: neaest to end effector
-        self.eef_pose = self.move_group.get_current_pose().pose
-        pst_eef = ros_numpy.numpify(self.eef_pose)[0:3, 3]
-        print(f"{self.eef_pose = }")
-        print(pst_eef.shape)
-        # pst_eef = self.get_transformation("panda_hand", "world")
-        # compute mininum distance and corresponding index
-        dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
-        ind_min = np.argmin(dist)
-        best_pose = poses[ind_min]
-        rospy.logwarn(f"choose pose with min distance: {best_pose}")
+        # # method 1: neaest to end effector
+        # self.eef_pose = self.move_group.get_current_pose().pose
+        # pst_eef = ros_numpy.numpify(self.eef_pose)[0:3, 3]
+        # print(f"{self.eef_pose = }")
+        # print(pst_eef.shape)
+        # # pst_eef = self.get_transformation("panda_hand", "world")
+        # # compute mininum distance and corresponding index
+        # dist = np.linalg.norm(psts_obj - pst_eef, axis=1)
+        # ind_min = np.argmin(dist)
+        # best_pose = poses[ind_min]
+        # rospy.logwarn(f"choose pose with min distance: {best_pose}")
     
         # # method 2: least neighbours
         # threshold = 0.15  # meter
@@ -188,23 +188,23 @@ class StateMachine:
         #         best_pose = poses[j]
         # rospy.logwarn(f"choose pose with min neighbours: {best_pose} with {num_nb} neighbour")
 
-        # # method 3: smallest distance to its closest neighbor
-        # max_min_distance = 0
-        # for i in range(len(poses)):
-        # 
-        #     # Compute Euclidean distance between the current pose and all other poses
-        #     dist = np.linalg.norm(psts_obj - psts_obj[i], axis=1)
-        # 
-        #     # Exclude distance to the current pose itself
-        #     dist[i] = float('inf')
-        # 
-        #     # Find the minimum distance for the current pose
-        #     current_min_distance = np.min(dist)
-        # 
-        #     # Update the best pose if the current pose has a larger minimum distance
-        #     if current_min_distance > max_min_distance:
-        #         max_min_distance = current_min_distance
-        #         best_pose = poses[i]
+        # method 3: smallest distance to its closest neighbor
+        max_min_distance = 0
+        for i in range(len(poses)):
+        
+            # Compute Euclidean distance between the current pose and all other poses
+            dist = np.linalg.norm(psts_obj - psts_obj[i], axis=1)
+        
+            # Exclude distance to the current pose itself
+            dist[i] = float('inf')
+        
+            # Find the minimum distance for the current pose
+            current_min_distance = np.min(dist)
+        
+            # Update the best pose if the current pose has a larger minimum distance
+            if current_min_distance > max_min_distance:
+                max_min_distance = current_min_distance
+                best_pose = poses[i]
 
         return best_pose
     
@@ -339,7 +339,7 @@ class StateMachine:
                 self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
                 return
 
-            rospy.sleep(2)  # give tracker some time
+            rospy.sleep(4)  # give tracker some time
 
             rospy.wait_for_service('pose_estimation/RetrieveTrackedPoses')
             res = self.retrieve_tracked_poses_client()
@@ -391,7 +391,10 @@ class StateMachine:
             if self.approach >= 6:
                 self.react_to_failure(res.message, State.END, Status.ERROR)
             else:
-                self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
+                rospy.logwarn(res.message)
+                self.state = State.PICK_CUBE
+                self.transition_data = pose
+                #self.react_to_failure(res.message, State.MOVE_TO_INITIAL_POSE)
             return
 
         self.state = State.PLACE_CUBE

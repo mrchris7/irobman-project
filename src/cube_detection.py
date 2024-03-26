@@ -19,7 +19,7 @@ class CubeDetectionNode:
         self.blur_sigmacol = 0.0
         self.blur_sigmaspace = 0.0
         self.morph_ksize = 5
-        self.th_blocksize = 213
+        self.th_blocksize = 235
         self.th_c = 4
         self.canny_aperturesize = 3
         self.canny_L2gradient = True
@@ -129,7 +129,7 @@ class CubeDetectionNode:
                     center_x, center_y = center_of_points(approx)
                                         
                     center_depth = img_depth[round(center_y), round(center_x)] #img_depth.get_value(round(center_x), round(center_y))[1] #
-                    print("center_x:", center_x, "center_y:", center_y, "center_depth:", center_depth)
+                    #print("center_x:", center_x, "center_y:", center_y, "center_depth:", center_depth)
                     center_points.append([center_x, center_y, center_depth])
                     
                     cv2.circle(shapes_img, (round(center_x), round(center_y)), 2, (0, 255, 0), 1)
@@ -154,9 +154,9 @@ class CubeDetectionNode:
 
             cube_x, cube_y, cube_depth = point_2d
             
-            print("X-Co-ordinate in Camera Frame: %f", cube_x)
-            print("Y-Co-ordinate in Camera Frame: %f", cube_y)
-            print("D-Co-ordinate in Camera Frame: %f", cube_depth)
+            #print("X-Co-ordinate in Camera Frame: %f", cube_x)
+            #print("Y-Co-ordinate in Camera Frame: %f", cube_y)
+            #print("D-Co-ordinate in Camera Frame: %f", cube_depth)
 
             f_x = 264.559 #526.945
             f_y = 264.559 #526.945	
@@ -174,9 +174,9 @@ class CubeDetectionNode:
             point.z = z_3d
             points_3d.append(point)
 
-            print("X-Co-ordinate in Camera Frame: %f", point.x)
-            print("Y-Co-ordinate in Camera Frame: %f", point.y)
-            print("Z-Co-ordinate in Camera Frame: %f", point.z)
+            #print("X-Co-ordinate in Camera Frame: %f", point.x)
+            #print("Y-Co-ordinate in Camera Frame: %f", point.y)
+            #print("Z-Co-ordinate in Camera Frame: %f", point.z)
 
         return points_3d
 
