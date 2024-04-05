@@ -14,23 +14,12 @@ Group:
 # Planning
 
 Subtasks:
-- CV, Tracking, Object detection, RGBD-Cube Detector 2D/3D (Xu, Kaiwen, Christian)
+- Perception (Xu, Kaiwen, Christian)
 - Motion Planning (Emanuel, Caleb)
+- Robot Behavior
 
-- (Behavior Tree (high level task))
 
-## To do
-- Motion Planning 
-    - [ ] Edit pick_and_place_test.py in order to make the arm align with the cube when grasping it. It already goes to the cube position, but we need to align the YAW from the gripper and the cube;
-    - [ ] Make better grasp approach, currently the Gripper aproach the cube from up, but it would be better if it comes from the side in order to avoid pressing the cube against the table;
-    - [ ] Make algorith that generate the stucture with the cubes, like a list with positions;
-    - [ ] Make pipeline. 
-        - First phase would be having a better view from the table and detect the cubes;
-        - Second phase would be picking and placing the target cube to desire state;
-        - Third phase would be checking if moving was succesful;
-        - Reset loop until the desite structure is complete.
-
-# Package Usage
+# Package Usage (Motion Planning)
 
 This package contains modules that facilitate handling objects with the Franka/Panda arm using Moveit. \
 The modules are:
