@@ -45,8 +45,6 @@ class StateMachine:
         self.close_gripper_client = rospy.ServiceProxy('motion_planner/GripperControl', SetBool)
         self.pick_cube_client = rospy.ServiceProxy('/motion_planner/PickCube', PickCube)
         self.place_cube_client = rospy.ServiceProxy('/motion_planner/PlaceCube', PlaceCube)
-        
-        # TODO: create the corresponsing rospy.Publisher inside the motion planning node and publish the eff-pose (alternatively, create a service)
         self.move_group = MoveGroupControl().move_group
         self.eef_pose = self.move_group.get_current_pose().pose
         
@@ -137,19 +135,6 @@ class StateMachine:
 
         elif state == State.END:
             self.status = Status.FINISHED
-
-    
-    def handle_eff_pose(self, state: JointState):
-        pass # TODO remove subscriber too
-        ## Find the index of the "panda_hand" joint
-        #try:
-        #
-        #    panda_hand_index = state.name.index("panda_hand")
-        #    panda_hand_position = state.position[panda_hand_index]
-        #except ValueError:
-        #    rospy.logwarn("Joint 'panda_hand' not found in the joint states message.")
-        #
-        #self.pose_eef = np.array(panda_hand_position[0:3])
 
 
     def choose_target_pose(self, poses: List[Pose]):
@@ -383,8 +368,6 @@ class StateMachine:
     def pick_cube(self,pose):   
         rospy.wait_for_service('/motion_planner/PickCube')
         res = self.pick_cube_client(pose,self.approach)
-        # TODO: check if cube is gripped inside motion planner node
-        #       and if not res.success shold be False
 
         if not res.success:
             self.approach += 1
