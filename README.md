@@ -140,3 +140,6 @@ rosrun irobman_project cube_param.py
 ```
 rosrun irobman_project pick_and_place_test.py
 ```
+
+## Acknowledgment
+This project uses the 3D tracking approach [Iterative Corresponding Geometry (ICG)](https://github.com/DLR-RM/3DObjectTracking/tree/master/ICG) by Stoiber et al. 2022
